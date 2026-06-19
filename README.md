@@ -23,6 +23,13 @@ This tool is designed to be **simple, lightweight, and hackable**.
 
 ---
 
+## Screenshot
+
+<img src="2026-06-19_183232_808.png">
+
+---
+
+
 ## Requirements
 
 - Linux
