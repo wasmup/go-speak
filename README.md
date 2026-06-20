@@ -5,7 +5,7 @@ It runs a local HTTP server, generates speech using **Sherpa‑ONNX**, and plays
 
 The UI lets you paste text, adjust speaker and speed, and monitor playback progress in real time.
 
-This tool is designed to be **simple, lightweight, and hackable**.
+This tool is designed to be simple, lightweight, and easy to hack.
 
 ---
 
@@ -25,8 +25,7 @@ This tool is designed to be **simple, lightweight, and hackable**.
 
 ## Screenshot
 
-<img src="./2026-06-19_183232_808.png" alt="Application screenshot">
-
+![Screenshot](2026-06-19_183232_808.png)
 
 ---
 
@@ -35,7 +34,7 @@ This tool is designed to be **simple, lightweight, and hackable**.
 
 - Linux
 - Go **1.22+**
-- `aplay` (from `alsa-utils`)
+- `alsa-utils` (provides `aplay`)
 - Sherpa‑ONNX Go bindings
 - A compatible TTS model
 
@@ -46,22 +45,38 @@ This tool is designed to be **simple, lightweight, and hackable**.
 
 Clone the repository:
 
-```
+```sh
 git clone git@github.com:wasmup/go-speak.git
 cd go-speak
 
 
 go install -trimpath -ldflags=-s
 
-```
+# build:
+GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
+file ~/tts/go-speak
+sha256sum ~/tts/go-speak
+# 17af9c298c7117ca2724090810482f8d3ac9e63b56b560061dad3b8707303aa1
 
----
+ls ~/tts/vits-piper-en_US-libritts_r-medium/
+
+./build-deb.sh 
+sha256sum build/go-speak_1.0.1_amd64.deb
+# 7a3b15007b8404e9f4c38f4d7a430afeaf9e39cf381fcdd6dd81964364004f88  build/go-speak_1.0.1_amd64.deb
+
+dpkg-deb -f build/go-speak_1.0.1_amd64.deb
+
+sudo dpkg -i build/go-speak_1.0.1_amd64.deb
+/opt/go-speak/go-speak -m /opt/go-speak
+# 2026/06/20 10:18:30 Listening on 127.0.0.1:8080
+
+```
 
 ---
 
 ## Model Setup
 
-Download a Sherpa‑ONNX Piper [model](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), for example:
+Download a Sherpa‑ONNX Piper TTS [model](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), for example:
 
 
 ```sh
@@ -169,12 +184,18 @@ Playback runs in a background goroutine with cancellation support.
 
 ### `POST /play`
 
+**Exclude chars**
+
+Characters entered here are removed from the text before playback.
+Example: `*#`
+
 Start playback.
 
 Form parameters:
 
 ```
 text=Hello world.
+exclude=*#
 ```
 
 Response:
@@ -265,9 +286,9 @@ index.html     embedded web UI
 
 ## Known Limitations
 
-- Sentence splitting is simple and punctuation‑based.
 - Only tested with Piper VITS models.
 - Playback currently depends on `aplay` (ALSA).
+- Sentence splitting is simple and punctuation‑based (. ! ?). Abbreviations such as "Dr." are not handled.
 
 ---
 
