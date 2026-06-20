@@ -56,19 +56,21 @@ go install -trimpath -ldflags=-s
 GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
 file ~/tts/go-speak
 sha256sum ~/tts/go-speak
-# 17af9c298c7117ca2724090810482f8d3ac9e63b56b560061dad3b8707303aa1
+# d9e4f60452c359322951468837a11b46e480bbfad88e0c822764d914ab4b7b79
 
 ls ~/tts/vits-piper-en_US-libritts_r-medium/
 
 ./build-deb.sh 
 sha256sum build/go-speak_1.0.1_amd64.deb
-# 7a3b15007b8404e9f4c38f4d7a430afeaf9e39cf381fcdd6dd81964364004f88  build/go-speak_1.0.1_amd64.deb
+# a5c29e1bc4f7e58b8527187c22310527ddc6235b77ec203187d243e69e352416  build/go-speak_1.0.1_amd64.deb
 
 dpkg-deb -f build/go-speak_1.0.1_amd64.deb
 
 sudo dpkg -i build/go-speak_1.0.1_amd64.deb
 /opt/go-speak/go-speak -m /opt/go-speak
 # 2026/06/20 10:18:30 Listening on 127.0.0.1:8080
+
+go version -m /opt/go-speak/go-speak
 
 ```
 
