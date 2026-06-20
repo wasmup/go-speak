@@ -50,7 +50,7 @@ git clone git@github.com:wasmup/go-speak.git
 cd go-speak
 
 
-go install -trimpath -ldflags=-s
+go install -trimpath -ldflags="-s -w"
 
 # build:
 GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
@@ -59,6 +59,8 @@ GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
 sudo dpkg -i build/go-speak_1.0.1_amd64.deb
 
 # run
+/opt/go-speak/go-speak 
+# run with model dir:
 /opt/go-speak/go-speak -m /opt/go-speak
 
 sha256sum build/go-speak_1.0.1_amd64.deb
@@ -106,9 +108,6 @@ Download a Sherpa‑ONNX Piper TTS [model](https://github.com/k2-fsa/sherpa-onnx
 
 
 ```sh
-mkdir ~/tts
-cd ~/tts
-
 wget -c https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2
 tar -xjf vits-piper-en_US-libritts_r-medium.tar.bz2
 
@@ -118,17 +117,17 @@ Expected directory layout:
 
 ```
 
-~/tts/
-└── vits-piper-en_US-libritts_r-medium
-    ├── en_US-libritts_r-medium.onnx
-    ├── tokens.txt
-    └── espeak-ng-data/
+/opt/go-speak/
+             └── vits-piper-en_US-libritts_r-medium
+                 ├── en_US-libritts_r-medium.onnx
+                 ├── tokens.txt
+                 └── espeak-ng-data/
 ```
 
 Default model directory:
 
 ```
-~/tts
+/opt/go-speak
 ```
 
 You can override it with `-m`.
@@ -138,7 +137,7 @@ You can override it with `-m`.
 ## Running
 
 ```
-go-speak
+/opt/go-speak/go-speak
 ```
 
 Open your browser:
@@ -162,17 +161,13 @@ http://127.0.0.1:8080
 Example:
 
 ```
-./go-speak \
-  -addr 127.0.0.1:8080 \
-  -m ~/tts \
-  -sid 7 \
-  -speed 1.0
+/opt/go-speak/go-speak -addr 127.0.0.1:8080 -m ~/tts -sid 7 -speed 1.0
 ```
 
 Load a startup text:
 
 ```
-./go-speak -i speech.txt
+/opt/go-speak/go-speak -i speech.txt
 ```
 
 ---

@@ -23,19 +23,12 @@ type Config struct {
 func ParseFlags() (*Config, error) {
 	cfg := &Config{}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-
-	modelDefault := filepath.Join(home, "tts")
-
 	flag.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flag.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
-	flag.StringVar(&cfg.Model, "m", modelDefault, "TTS model directory")
+	flag.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
 
 	flag.Int64Var(&cfg.SID, "sid", 7, "default speaker id")
-	flag.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
+	flag.Float64Var(&cfg.Speed, "speed", 1.1, "default speech speed")
 
 	flag.Parse()
 
@@ -43,10 +36,13 @@ func ParseFlags() (*Config, error) {
 		cfg.Speed = 1.0
 	}
 
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, err
+	}
 	cfg.Model = expandHome(cfg.Model, home)
 	cfg.Input = expandHome(cfg.Input, home)
 
-	// Validate model directory
 	if cfg.Model == "" {
 		return nil, errors.New("model directory must not be empty")
 	}
@@ -54,7 +50,6 @@ func ParseFlags() (*Config, error) {
 		return nil, fmt.Errorf("model directory error: %w", err)
 	}
 
-	// Load startup text (optional)
 	if cfg.Input != "" {
 		b, err := os.ReadFile(cfg.Input)
 		if err != nil {
