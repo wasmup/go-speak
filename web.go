@@ -100,6 +100,11 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	exclude := r.FormValue("exclude")
+	if exclude != "" {
+		text = removeChars(text, exclude)
+	}
+
 	sentences := splitSentences(text)
 	if len(sentences) == 0 {
 		http.Error(w, "empty text", 400)
@@ -133,4 +138,24 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 
 type PlayResponse struct {
 	Text string `json:"text"`
+}
+
+func removeChars(s, chars string) string {
+	if chars == "" {
+		return s
+	}
+
+	var table [256]bool
+	for i := 0; i < len(chars); i++ {
+		table[chars[i]] = true
+	}
+
+	b := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		if !table[s[i]] {
+			b = append(b, s[i])
+		}
+	}
+
+	return string(b)
 }
