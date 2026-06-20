@@ -64,10 +64,12 @@ sudo dpkg -i build/go-speak_1.0.1_amd64.deb
 /opt/go-speak/go-speak -m /opt/go-speak
 
 sha256sum build/go-speak_1.0.1_amd64.deb
-# 68c30233a4469a8a9e5b01c67b749fa1204101715a8694ae58754f1ddc73ac70  build/go-speak_1.0.1_amd64.deb
+# 660c7f7ce5e4ed40618fb3bee83621d1f5e76021d3ff337dcb0e08ad5c1285bd  build/go-speak_1.0.1_amd64.deb
+
 
 sha256sum /opt/go-speak/go-speak
-# 1191a93dfeacbc071288749b90daa17afeac04ac12d4de985b8f2daa0d412c23  /opt/go-speak/go-speak
+# 447018c06ee1365bf5a1b1d5121261bba8eb2317b2b0b16221f598fbfc69e823  /opt/go-speak/go-speak
+
 
 dpkg-deb -f build/go-speak_1.0.1_amd64.deb
 # Package: go-speak
@@ -84,7 +86,7 @@ dpkg-deb -f build/go-speak_1.0.1_amd64.deb
 go version -m /opt/go-speak/go-speak
 # /opt/go-speak/go-speak: go1.26.4
 #         path    go-speak
-#         mod     go-speak        v1.0.1-0.20260620065611-0d9e803af4e6
+#         mod     go-speak        v1.0.1-0.20260620070927-e71c03a1175d
 #         dep     github.com/k2-fsa/sherpa-onnx-go-linux  v1.13.3 h1:FuO/vw+vBgS/wRJDTOMy2ikJdHRhWvleqpdjvSOnzYA=
 #         build   -buildmode=exe
 #         build   -compiler=gc
@@ -94,8 +96,8 @@ go version -m /opt/go-speak/go-speak
 #         build   GOOS=linux
 #         build   GOAMD64=v1
 #         build   vcs=git
-#         build   vcs.revision=0d9e803af4e61a129a04f5d1275ccb13b3a36170
-#         build   vcs.time=2026-06-20T06:56:11Z
+#         build   vcs.revision=e71c03a1175d9b21097955275bfcf3fbc6b80116
+#         build   vcs.time=2026-06-20T07:09:27Z
 #         build   vcs.modified=false
 
 ```

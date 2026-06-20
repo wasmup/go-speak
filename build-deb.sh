@@ -45,7 +45,7 @@ Architecture: $ARCH
 Maintainer: wasmup
 Depends: alsa-utils
 Description: Offline TTS web player using Sherpa-ONNX
- Lightweight local web UI for text-to-speech playback.
+ A lightweight local web UI for text-to-speech playback.
  Uses Sherpa-ONNX and plays audio via aplay.
 EOF
 
@@ -59,7 +59,8 @@ chmod 0755 "$PKG_DIR/usr/local/bin/go-speak"
 chmod 0755 "$INSTALL_ROOT/go-speak"
 
 # ---- Build deb ----
-dpkg-deb --build "$PKG_DIR" "$BUILD_DIR/$DEB_NAME"
+# dpkg-deb --build "$PKG_DIR" "$BUILD_DIR/$DEB_NAME"
+dpkg-deb --root-owner-group --build "$PKG_DIR" "$BUILD_DIR/$DEB_NAME"
 
 echo
 echo "✅ Package created:"
