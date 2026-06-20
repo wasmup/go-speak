@@ -64,12 +64,10 @@ sudo dpkg -i build/go-speak_1.0.1_amd64.deb
 /opt/go-speak/go-speak -m /opt/go-speak
 
 sha256sum build/go-speak_1.0.1_amd64.deb
-# 660c7f7ce5e4ed40618fb3bee83621d1f5e76021d3ff337dcb0e08ad5c1285bd  build/go-speak_1.0.1_amd64.deb
-
+# b0ce940758da11fd65f52ca518f400254a107751d9627e57058bcd8c92b64af8  build/go-speak_1.0.1_amd64.deb
 
 sha256sum /opt/go-speak/go-speak
-# 447018c06ee1365bf5a1b1d5121261bba8eb2317b2b0b16221f598fbfc69e823  /opt/go-speak/go-speak
-
+# 89310551d2bc9446fce8421a27efc9fd62d56974ac76b251ab820d169bc78704  /opt/go-speak/go-speak
 
 dpkg-deb -f build/go-speak_1.0.1_amd64.deb
 # Package: go-speak
@@ -80,13 +78,13 @@ dpkg-deb -f build/go-speak_1.0.1_amd64.deb
 # Maintainer: wasmup
 # Depends: alsa-utils
 # Description: Offline TTS web player using Sherpa-ONNX
-#  Lightweight local web UI for text-to-speech playback.
+#  A lightweight local web UI for text-to-speech playback.
 #  Uses Sherpa-ONNX and plays audio via aplay.
 
 go version -m /opt/go-speak/go-speak
 # /opt/go-speak/go-speak: go1.26.4
 #         path    go-speak
-#         mod     go-speak        v1.0.1-0.20260620070927-e71c03a1175d
+#         mod     go-speak        v1.0.1-0.20260620071633-37f29405a71d
 #         dep     github.com/k2-fsa/sherpa-onnx-go-linux  v1.13.3 h1:FuO/vw+vBgS/wRJDTOMy2ikJdHRhWvleqpdjvSOnzYA=
 #         build   -buildmode=exe
 #         build   -compiler=gc
@@ -96,8 +94,8 @@ go version -m /opt/go-speak/go-speak
 #         build   GOOS=linux
 #         build   GOAMD64=v1
 #         build   vcs=git
-#         build   vcs.revision=e71c03a1175d9b21097955275bfcf3fbc6b80116
-#         build   vcs.time=2026-06-20T07:09:27Z
+#         build   vcs.revision=37f29405a71d25ab2a9dca7025872018e732bcb2
+#         build   vcs.time=2026-06-20T07:16:33Z
 #         build   vcs.modified=false
 
 ```
