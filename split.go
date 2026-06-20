@@ -2,33 +2,18 @@ package main
 
 import "strings"
 
-func splitSentences(text string) []string {
-	text = strings.TrimSpace(text)
-	if text == "" {
-		return nil
+func splitSentences(text, splitChars string) []string {
+	f := func(r rune) bool {
+		return strings.ContainsRune(splitChars, r)
 	}
+	parts := strings.FieldsFunc(text, f)
 
-	var chunks []string
-	start := 0
-
-	for i, r := range text {
-		switch r {
-		case '.', '!', '?':
-			end := i + 1
-			s := strings.TrimSpace(text[start:end])
-			if s != "" {
-				chunks = append(chunks, s)
-			}
-			start = end
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
 		}
 	}
-
-	if start < len(text) {
-		s := strings.TrimSpace(text[start:])
-		if s != "" {
-			chunks = append(chunks, s)
-		}
-	}
-
-	return chunks
+	return result
 }

@@ -94,6 +94,11 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	splitChars := r.FormValue("split")
+	if splitChars == "" {
+		splitChars = `.!?:"“”`
+	}
+
 	text := r.FormValue("text")
 	if text == "" {
 		http.Error(w, "empty text", 400)
@@ -105,7 +110,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		text = removeChars(text, exclude)
 	}
 
-	sentences := splitSentences(text)
+	sentences := splitSentences(text, splitChars)
 	if len(sentences) == 0 {
 		http.Error(w, "empty text", 400)
 		return

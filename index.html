@@ -125,6 +125,11 @@
             <input id="exclude" type="text" value="*#">
         </label>
 
+        <label>
+            Split sentence chars:
+            <input id="split" type="text" value='.!?:"“”'>
+        </label>
+
     </div>
 
     <div id="currentRow">
@@ -224,12 +229,14 @@
         function play() {
             const text = document.getElementById("text").value
             const exclude = document.getElementById("exclude").value
+            const split = document.getElementById("split").value
 
             fetch("/play", {
                 method: "POST",
                 body: new URLSearchParams({
                     text: text,
-                    exclude: exclude
+                    exclude: exclude,
+                    split: split
                 })
             })
                 .then(resp => {
@@ -246,6 +253,7 @@
                     stopProgressPolling()
                 })
         }
+
 
 
         updateProgress()
