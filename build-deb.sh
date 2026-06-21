@@ -5,6 +5,8 @@ set -euo pipefail
 VERSION="1.0.2"
 ARCH="amd64"
 
+GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
+
 BIN_SRC="$HOME/tts/go-speak"
 MODEL_SRC="$HOME/tts/vits-piper-en_US-libritts_r-medium"
 
@@ -12,6 +14,8 @@ BUILD_DIR="./build"
 PKG_DIR="$BUILD_DIR/pkg"
 INSTALL_ROOT="$PKG_DIR/opt/go-speak"
 DEB_NAME="go-speak-${VERSION}-linux-${ARCH}.deb"
+DEB_PATH="$BUILD_DIR/$DEB_NAME"
+SHA256_PATH="$DEB_PATH.sha256"
 
 # ---- Checks ----
 if [[ ! -f "$BIN_SRC" ]]; then
@@ -26,6 +30,7 @@ fi
 
 # ---- Clean ----
 rm -rf "$BUILD_DIR"
+
 mkdir -p "$INSTALL_ROOT"
 mkdir -p "$PKG_DIR/DEBIAN"
 mkdir -p "$PKG_DIR/usr/local/bin"
@@ -58,9 +63,17 @@ chmod 0755 "$PKG_DIR/usr/local/bin/go-speak"
 chmod 0755 "$INSTALL_ROOT/go-speak"
 
 # ---- Build deb ----
-# dpkg-deb --build "$PKG_DIR" "$BUILD_DIR/$DEB_NAME"
-dpkg-deb --root-owner-group --build "$PKG_DIR" "$BUILD_DIR/$DEB_NAME"
+dpkg-deb --root-owner-group --build "$PKG_DIR" "$DEB_PATH"
+
+# ---- SHA256 checksum ----
+(
+    cd "$BUILD_DIR"
+    sha256sum "$DEB_NAME" > "$DEB_NAME.sha256"
+)
 
 echo
-echo "✅ Package created:"
-echo "   $BUILD_DIR/$DEB_NAME"
+echo "Package created:"
+echo "   $DEB_PATH"
+echo
+echo "SHA256 created:"
+echo "   $SHA256_PATH"
