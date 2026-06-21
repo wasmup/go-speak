@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---- Config ----
-VERSION="1.0.1"
+VERSION="1.0.2"
 ARCH="amd64"
 
 BIN_SRC="$HOME/tts/go-speak"
@@ -11,8 +11,7 @@ MODEL_SRC="$HOME/tts/vits-piper-en_US-libritts_r-medium"
 BUILD_DIR="./build"
 PKG_DIR="$BUILD_DIR/pkg"
 INSTALL_ROOT="$PKG_DIR/opt/go-speak"
-
-DEB_NAME="go-speak_${VERSION}_${ARCH}.deb"
+DEB_NAME="go-speak-${VERSION}-linux-${ARCH}.deb"
 
 # ---- Checks ----
 if [[ ! -f "$BIN_SRC" ]]; then
