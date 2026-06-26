@@ -56,12 +56,12 @@ go install -trimpath -ldflags="-s -w"
 ./build-deb.sh 
 
 cd ./build/
-echo "$(cat go-speak-1.0.2-linux-amd64.deb.sha256)" | sha256sum --check
+echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
 
-dpkg-deb -f go-speak-1.0.2-linux-amd64.deb
+dpkg-deb -f go-speak-1.0.3-linux-amd64.deb
 
 # install
-sudo dpkg -i go-speak-1.0.2-linux-amd64.deb
+sudo dpkg -i go-speak-1.0.3-linux-amd64.deb
 
 # run
 /opt/go-speak/go-speak 

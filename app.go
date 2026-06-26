@@ -92,13 +92,14 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 			a.pauseCancel = sentCancel // Store it so HandlePause can call it
 			for a.paused && ctx.Err() == nil {
 				a.cond.Wait() // Block here if paused
-				fmt.Println(`awakend`)
+				fmt.Println(`awakened`)
 			}
 			a.mu.Unlock()
 
 			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
 				return
 			}
+			fmt.Println(i, s)
 			err := play(sentCtx, audio)
 			sentCancel() // Cleanup
 			if err != nil {
