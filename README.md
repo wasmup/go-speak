@@ -41,7 +41,20 @@ This tool is designed to be simple, lightweight, and easy to hack.
 
 ---
 
-## Install
+## Releases Install
+
+[releases](https://github.com/wasmup/go-speak/releases)
+
+```sh
+# Valiadte sha256sum
+echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
+
+# install
+sudo dpkg -i go-speak-1.0.3-linux-amd64.deb
+
+```
+
+## Source Install
 
 Clone the repository:
 
@@ -60,8 +73,6 @@ echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
 
 dpkg-deb -f go-speak-1.0.3-linux-amd64.deb
 
-# install
-sudo dpkg -i go-speak-1.0.3-linux-amd64.deb
 
 # run
 /opt/go-speak/go-speak 
