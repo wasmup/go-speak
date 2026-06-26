@@ -17,6 +17,9 @@ type Config struct {
 	SID         int64   // default speaker id
 	Speed       float64 // default speech speed
 	StartupText string  // loaded startup text
+
+	Models []string // TTS models
+	Index  int      // selected model file index
 }
 
 // ParseFlags parses command-line flags and prepares the configuration.
@@ -56,6 +59,11 @@ func ParseFlags() (*Config, error) {
 			return nil, fmt.Errorf("input file error: %w", err)
 		}
 		cfg.StartupText = string(b)
+	}
+
+	cfg.Models, err = ModelFiles(cfg.Model)
+	if err != nil {
+		return nil, err
 	}
 
 	return cfg, nil

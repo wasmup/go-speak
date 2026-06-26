@@ -94,7 +94,11 @@ go version -m /opt/go-speak/go-speak
 
 ## Model Setup
 
-Download a Sherpa‑ONNX Piper TTS [model](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), for example:
+
+
+Select/test your model [here](https://huggingface.co/spaces/k2-fsa/text-to-speech)
+
+Download TTS model [here](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), for example:
 
 
 ```sh

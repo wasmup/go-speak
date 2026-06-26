@@ -2,25 +2,25 @@ package main
 
 import (
 	"errors"
+	"os"
 	"path/filepath"
+	"strings"
 
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 )
 
 const (
-	modelSubdir = "vits-piper-en_US-libritts_r-medium"
-	modelFile   = "en_US-libritts_r-medium.onnx"
-	tokensFile  = "tokens.txt"
-	espeakDir   = "espeak-ng-data"
+	tokensFile = "tokens.txt"
+	espeakDir  = "espeak-ng-data"
 )
 
-func NewTTS(dir string) (*sherpa.OfflineTts, error) {
-	modelRoot := filepath.Join(dir, modelSubdir)
+func NewTTS(modelFile string) (*sherpa.OfflineTts, error) {
+	modelRoot := filepath.Dir(modelFile)
 
 	ttsCfg := sherpa.OfflineTtsConfig{
 		Model: sherpa.OfflineTtsModelConfig{
 			Vits: sherpa.OfflineTtsVitsModelConfig{
-				Model:   filepath.Join(modelRoot, modelFile),
+				Model:   modelFile,
 				Tokens:  filepath.Join(modelRoot, tokensFile),
 				DataDir: filepath.Join(modelRoot, espeakDir),
 			},
@@ -34,4 +34,62 @@ func NewTTS(dir string) (*sherpa.OfflineTts, error) {
 	}
 
 	return tts, nil
+}
+
+// ModelFiles scans only the direct child directories of root.
+// For each child directory, if it contains one or more ".onnx" files directly
+// inside it, those files are returned as full paths.
+//
+// It does NOT recurse beyond one directory level.
+func ModelFiles(root string) ([]string, error) {
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		return nil, err
+	}
+
+	var out []string
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		dirPath := filepath.Join(root, entry.Name())
+
+		childEntries, err := os.ReadDir(dirPath)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, child := range childEntries {
+			if child.IsDir() {
+				continue
+			}
+
+			if strings.EqualFold(filepath.Ext(child.Name()), ".onnx") {
+				fullPath := filepath.Join(dirPath, child.Name())
+
+				// normalization to absolute path
+				absPath, err := filepath.Abs(fullPath)
+				if err != nil {
+					return nil, err
+				}
+
+				out = append(out, absPath)
+			}
+		}
+	}
+
+	return out, nil
+}
+
+func FileName(p string) string {
+	base := filepath.Base(p)
+	ext := filepath.Ext(base)
+	return strings.TrimSuffix(base, ext)
+}
+
+func TopFolderName(p string) string {
+	dir := filepath.Dir(p)    // /a/b/c
+	return filepath.Base(dir) // c
 }
