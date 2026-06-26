@@ -25,7 +25,7 @@ This tool is designed to be simple, lightweight, and easy to hack.
 
 ## Screenshot
 
-![Screenshot](2026-06-26_113930_881.png)
+![Screenshot](2026-06-26_153914_259.png)
 
 ---
 
@@ -113,7 +113,7 @@ tar -xjf vits-piper-en_US-libritts_r-medium.tar.bz2
 
 ```
 
-Expected directory layout:
+Expected root model directory layout:
 
 ```
 
@@ -122,6 +122,12 @@ Expected directory layout:
                  ├── en_US-libritts_r-medium.onnx
                  ├── tokens.txt
                  └── espeak-ng-data/
+
+             └── vits-piper-en_US-amy-medium
+                 ├── en_US-amy-medium.onnx
+                 ├── tokens.txt
+                 └── espeak-ng-data/
+                 
 ```
 
 Default model directory:
@@ -137,7 +143,7 @@ You can override it with `-m`.
 ## Running
 
 ```
-/opt/go-speak/go-speak
+/opt/go-speak/go-speak -m /opt/go-speak -name "vits-piper-en_US-libritts_r-medium"
 ```
 
 Open your browser:
@@ -153,7 +159,7 @@ http://127.0.0.1:8080
 ```
 -addr   HTTP listen address
 -i      Startup text file (optional)
--m      TTS model directory
+-m      TTS model root directory which may contain more the one model
 -name   pre selected TTS model name ("vits-piper-en_US-libritts_r-medium")
 -sid    Default speaker ID
 -speed  Default speech speed
