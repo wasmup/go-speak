@@ -14,13 +14,13 @@ const (
 	espeakDir  = "espeak-ng-data"
 )
 
-func NewTTS(modelFile string) (*sherpa.OfflineTts, error) {
-	modelRoot := filepath.Dir(modelFile)
+func NewTTS(model Model) (*sherpa.OfflineTts, error) {
+	modelRoot := filepath.Dir(model.ModelFile)
 
 	ttsCfg := sherpa.OfflineTtsConfig{
 		Model: sherpa.OfflineTtsModelConfig{
 			Vits: sherpa.OfflineTtsVitsModelConfig{
-				Model:   modelFile,
+				Model:   model.ModelFile,
 				Tokens:  filepath.Join(modelRoot, tokensFile),
 				DataDir: filepath.Join(modelRoot, espeakDir),
 			},
@@ -81,15 +81,4 @@ func ModelFiles(root string) ([]string, error) {
 	}
 
 	return out, nil
-}
-
-func FileName(p string) string {
-	base := filepath.Base(p)
-	ext := filepath.Ext(base)
-	return strings.TrimSuffix(base, ext)
-}
-
-func TopFolderName(p string) string {
-	dir := filepath.Dir(p)    // /a/b/c
-	return filepath.Base(dir) // c
 }

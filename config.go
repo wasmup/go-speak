@@ -18,8 +18,13 @@ type Config struct {
 	Speed       float64 // default speech speed
 	StartupText string  // loaded startup text
 
-	Models []string // TTS models
-	Index  int      // selected model file index
+	Models []Model // TTS models
+	Index  int     // selected model file index
+}
+
+type Model struct {
+	Name      string
+	ModelFile string
 }
 
 // ParseFlags parses command-line flags and prepares the configuration.
@@ -61,9 +66,15 @@ func ParseFlags() (*Config, error) {
 		cfg.StartupText = string(b)
 	}
 
-	cfg.Models, err = ModelFiles(cfg.Model)
+	files, err := ModelFiles(cfg.Model)
 	if err != nil {
 		return nil, err
+	}
+	for _, f := range files {
+		cfg.Models = append(cfg.Models, Model{
+			ModelFile: f,
+			Name:      filepath.Base(filepath.Dir(f)),
+		})
 	}
 
 	return cfg, nil

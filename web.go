@@ -18,6 +18,8 @@ var pageHTML string
 var pageTemplate = template.Must(template.New("index").Parse(pageHTML))
 
 type IndexPageData struct {
+	Models      []string
+	Index       int
 	SID         int64
 	Speed       string
 	StartupText string
@@ -31,7 +33,14 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
+	Models := make([]string, len(a.cfg.Models))
+	for i := range a.cfg.Models {
+		Models[i] = a.cfg.Models[i].Name
+	}
+
 	data := IndexPageData{
+		Models:      Models,
+		Index:       a.cfg.Index,
 		SID:         a.sid.Load(),
 		Speed:       fmt.Sprintf("%.02f", float64(a.speedX100.Load())/100),
 		StartupText: a.cfg.StartupText,
@@ -125,6 +134,22 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		http.Error(w, "invalid form", http.StatusBadRequest)
 		return
+	}
+
+	modelName := r.FormValue("model_name")
+	if modelName != "" {
+		idx := -1
+		for i := range a.cfg.Models {
+			if a.cfg.Models[i].Name == modelName {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 {
+			http.Error(w, "invalid model_name", http.StatusBadRequest)
+			return
+		}
+		a.cfg.Index = idx
 	}
 
 	splitChars := r.FormValue("split")

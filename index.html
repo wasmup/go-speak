@@ -113,6 +113,19 @@
     <div id="topbar">
 
         <div class="controls">
+
+            <label for="model_name">Model</label>
+            <select id="model_name" name="model_name">
+                {{range $i, $m := .Models}}
+                <option value="{{$m}}" {{if eq $.Index $i}}selected{{end}}>
+                    {{$m}}
+                </option>
+                {{end}}
+            </select>
+
+
+
+
             <button id="btnPlay" onclick="play()">Play</button>
             <button id="btnPause" onclick="togglePause()">Pause</button>
             <button id="btnStop" onclick="stop()">Stop</button>
@@ -255,13 +268,15 @@
             const text = document.getElementById("text").value
             const exclude = document.getElementById("exclude").value
             const split = document.getElementById("split").value
+            const model_name = document.getElementById("model_name").value
 
             fetch("/play", {
                 method: "POST",
                 body: new URLSearchParams({
                     text: text,
                     exclude: exclude,
-                    split: split
+                    split: split,
+                    model_name: model_name
                 })
             })
                 .then(resp => {
@@ -278,8 +293,6 @@
                     stopProgressPolling()
                 })
         }
-
-
 
         updateProgress()
     </script>
