@@ -70,6 +70,7 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 
 	for i, s := range sentences {
 		if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
+			fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 			return
 		}
 
@@ -83,6 +84,7 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 		a.ttsMu.Unlock()
 		for { // pause resume
 			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
+				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 				return
 			}
 
@@ -92,21 +94,30 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 			a.pauseCancel = sentCancel // Store it so HandlePause can call it
 			for a.paused && ctx.Err() == nil {
 				a.cond.Wait() // Block here if paused
-				fmt.Println(`awakened`)
+				fmt.Println(sessionID, i, `awakened`)
 			}
 			a.mu.Unlock()
 
 			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
+				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 				return
 			}
-			fmt.Println(i, s)
+			fmt.Println(sessionID, i, s)
 			err := play(sentCtx, audio)
 			sentCancel() // Cleanup
 			if err != nil {
-				fmt.Println(`paused:`, err)
-				continue
+				a.mu.Lock()
+				paused := a.paused
+				a.mu.Unlock()
+				if paused {
+					fmt.Println(sessionID, i, `paused:`, err)
+					continue
+				} else {
+					fmt.Println(sessionID, i, `stopped:`, err)
+				}
 			}
 			if a.playSessionID.Load() != sessionID {
+				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 				return
 			}
 			break
