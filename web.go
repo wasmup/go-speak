@@ -157,6 +157,13 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	a.currentSentence.Store("")
 	a.resetProgress(totalChunks)
 
+	var err error
+	a.tts, err = NewTTS(a.cfg.Models[a.cfg.Index])
+	if err != nil {
+		http.Error(w, "tts init failed", 400)
+		return
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	a.mu.Lock()

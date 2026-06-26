@@ -38,14 +38,8 @@ type App struct {
 }
 
 func NewApp(cfg *Config) (*App, error) {
-	tts, err := NewTTS(cfg.Models[cfg.Index])
-	if err != nil {
-		return nil, err
-	}
-
 	a := &App{
 		cfg: cfg,
-		tts: tts,
 	}
 	a.cond = sync.NewCond(&a.mu)
 
