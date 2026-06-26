@@ -48,6 +48,8 @@ This tool is designed to be simple, lightweight, and easy to hack.
 ```sh
 # Valiadte sha256sum
 echo "$(cat go-speak-1.0.4-linux-amd64.deb.sha256)" | sha256sum --check
+# go-speak-1.0.4-linux-amd64.deb: OK
+
 
 # install
 sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
@@ -152,6 +154,7 @@ http://127.0.0.1:8080
 -addr   HTTP listen address
 -i      Startup text file (optional)
 -m      TTS model directory
+-name   pre selected TTS model name ("vits-piper-en_US-libritts_r-medium")
 -sid    Default speaker ID
 -speed  Default speech speed
 ```
