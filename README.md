@@ -64,8 +64,11 @@ cd go-speak
 
 
 go install -trimpath -ldflags="-s -w"
+```
 
-# build:
+# Build
+
+```sh
 ./build-deb.sh 
 
 cd ./build/
