@@ -15,7 +15,11 @@
         body {
             display: flex;
             flex-direction: column;
+            gap: 0;
         }
+
+
+
 
         #topbar {
             flex: 0 0 auto;
@@ -57,10 +61,20 @@
             box-sizing: border-box;
             border: none;
             resize: none;
-            padding: 12px;
+            margin: 0;
+            padding: 0;
             font-family: monospace;
             font-size: 16px;
             outline: none;
+        }
+
+        #currentSentence {
+            font-size: 16px;
+            font-weight: 500;
+            color: #222;
+            white-space: pre-wrap;
+            margin: 0;
+            padding: 0;
         }
 
         button {
@@ -94,21 +108,19 @@
             color: #666;
             margin-bottom: 4px;
         }
-
-        #currentSentence {
-            font-size: 32px;
-            font-weight: 500;
-            color: #222;
-            white-space: pre-wrap;
-        }
     </style>
 </head>
 
 <body>
 
     <div id="topbar">
-        <button onclick="play()">▶ Play</button>
-        <button onclick="stop()">■ Stop</button>
+
+        <div class="controls">
+            <button id="btnPlay" onclick="play()">Play</button>
+            <button id="btnPause" onclick="togglePause()">Pause</button>
+            <button id="btnStop" onclick="stop()">Stop</button>
+            <button id="btnClear" onclick="clearText()" style="background:#666;">Clear</button>
+        </div>
 
         <label>
             Speaker id:
@@ -146,8 +158,19 @@
     <textarea id="text">{{ .StartupText }}</textarea>
 
     <script>
-        let progressTimer = null
+        let progressTimer = null;
+        let isPaused = false;
 
+        async function togglePause() {
+            const resp = await fetch('/pause', { method: 'POST' });
+            const data = await resp.json();
+            isPaused = data.paused;
+            document.getElementById('btnPause').innerText = isPaused ? 'Resume' : 'Pause';
+        }
+
+        function clearText() {
+            document.getElementById('text').value = '';
+        }
 
 
         function stop() {
@@ -175,30 +198,35 @@
             }
         }
 
-        function updateProgress() {
-            fetch("/progress")
-                .then(resp => resp.json())
-                .then(p => {
+        async function updateProgress() {
+            try {
+                const resp = await fetch("/progress");
+                if (!resp.ok) throw new Error("Network response was not ok");
 
-                    const progress = document.getElementById("progress")
-                    const progressText = document.getElementById("progressText")
-                    const currentSentence = document.getElementById("currentSentence")
+                const p = await resp.json();
 
-                    progress.max = 100
-                    progress.value = p.percent
+                const progress = document.getElementById("progress");
+                const progressText = document.getElementById("progressText");
+                const currentSentence = document.getElementById("currentSentence");
+                const btnPause = document.getElementById("btnPause");
 
-                    progressText.textContent =
-                        `${p.done} / ${p.total} chunks (${p.percent}%)`
+                progress.max = 100;
+                progress.value = p.percent;
+                progressText.textContent = `${p.done} / ${p.total} chunks (${p.percent}%)`;
 
-                    currentSentence.textContent = p.current || ""
+                currentSentence.textContent = p.current || "";
 
-                    if (!p.playing) {
-                        stopProgressPolling()
-                    }
-                })
-                .catch(() => {
-                    stopProgressPolling()
-                })
+                if (!p.playing) {
+                    btnPause.innerText = 'Pause';
+                    isPaused = false;
+                    stopProgressPolling();
+                    return; // Exit function
+                }
+
+            } catch (err) {
+                console.error("Progress fetch failed:", err);
+                stopProgressPolling();
+            }
         }
 
 

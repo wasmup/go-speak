@@ -24,6 +24,7 @@ func main() {
 
 	mux.HandleFunc("GET /", app.handleIndex)
 	mux.HandleFunc("POST /play", app.handlePlay)
+	mux.HandleFunc("POST /pause", app.HandlePause)
 	mux.HandleFunc("POST /stop", app.handleStop)
 	mux.HandleFunc("GET /progress", app.handleProgress)
 	mux.HandleFunc("POST /set_sid", app.handleSetSID)

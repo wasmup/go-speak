@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"sync/atomic"
 
@@ -20,7 +21,11 @@ type App struct {
 	speedX100 atomic.Int64
 
 	// playback control
-	cancel context.CancelFunc
+	playing     bool
+	paused      bool
+	cond        *sync.Cond
+	cancel      context.CancelFunc
+	pauseCancel context.CancelFunc
 
 	// progress state
 	progressDone    atomic.Int64
@@ -38,20 +43,25 @@ func NewApp(cfg *Config) (*App, error) {
 		return nil, err
 	}
 
-	app := &App{
+	a := &App{
 		cfg: cfg,
 		tts: tts,
 	}
+	a.cond = sync.NewCond(&a.mu)
 
-	app.sid.Store(int64(cfg.SID))
-	app.speedX100.Store(int64(cfg.Speed * 100))
-	app.currentSentence.Store("")
+	a.sid.Store(int64(cfg.SID))
+	a.speedX100.Store(int64(cfg.Speed * 100))
+	a.currentSentence.Store("")
 
-	return app, nil
+	return a, nil
 }
 
-func (a *App) playLoop(ctx context.Context, sessionID int64, sentences []string) {
+func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string) {
 	defer func() {
+		a.mu.Lock()
+		a.playing = false
+		a.paused = false
+		a.mu.Unlock()
 		if a.playSessionID.Load() == sessionID {
 			a.progressPlaying.Store(false)
 			a.currentSentence.Store(``)
@@ -71,22 +81,35 @@ func (a *App) playLoop(ctx context.Context, sessionID int64, sentences []string)
 		a.ttsMu.Lock()
 		audio := a.tts.Generate(s, sid, speed)
 		a.ttsMu.Unlock()
+		for { // pause resume
+			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
+				return
+			}
 
-		if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
-			return
-		}
+			sentCtx, sentCancel := context.WithCancel(ctx)
+			a.mu.Lock()
+			a.playing = true
+			a.pauseCancel = sentCancel // Store it so HandlePause can call it
+			for a.paused && ctx.Err() == nil {
+				a.cond.Wait() // Block here if paused
+				fmt.Println(`awakend`)
+			}
+			a.mu.Unlock()
 
-		if a.playSessionID.Load() != sessionID {
-			return
+			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
+				return
+			}
+			err := play(sentCtx, audio)
+			sentCancel() // Cleanup
+			if err != nil {
+				fmt.Println(`paused:`, err)
+				continue
+			}
+			if a.playSessionID.Load() != sessionID {
+				return
+			}
+			break
 		}
-
-		if err := play(ctx, audio); err != nil {
-			return
-		}
-		if a.playSessionID.Load() != sessionID {
-			return
-		}
-
 		a.progressDone.Store(int64(i + 1))
 	}
 
