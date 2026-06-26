@@ -46,7 +46,7 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
 	flag.StringVar(&cfg.Name, "name", "vits-piper-en_US-libritts_r-medium", "pre selected TTS model name")
 
-	flag.Int64Var(&cfg.SID, "sid", 7, "default speaker id")
+	flag.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
 	flag.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
 
 	flag.Parse()
@@ -81,11 +81,17 @@ func ParseFlags() (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	m := map[string]bool{}
 	for _, f := range files {
+		name := filepath.Base(filepath.Dir(f))
+		if m[name] {
+			continue
+		}
 		cfg.Models = append(cfg.Models, Model{
 			ModelFile: f,
-			Name:      filepath.Base(filepath.Dir(f)),
+			Name:      name,
 		})
+		m[name] = true
 	}
 
 	cfg.Index = cfg.ModelIndex(cfg.Name)

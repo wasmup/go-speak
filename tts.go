@@ -9,20 +9,63 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 )
 
-const (
-	tokensFile = "tokens.txt"
-	espeakDir  = "espeak-ng-data"
-)
-
 func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 	modelRoot := filepath.Dir(model.ModelFile)
+
+	if strings.HasPrefix(model.Name, "sherpa-onnx-supertonic") {
+		ttsCfg := sherpa.OfflineTtsConfig{
+			Model: sherpa.OfflineTtsModelConfig{
+				Supertonic: sherpa.OfflineTtsSupertonicModelConfig{
+					DurationPredictor: filepath.Join(modelRoot, `duration_predictor.int8.onnx`),
+					TextEncoder:       filepath.Join(modelRoot, `text_encoder.int8.onnx`),
+					VectorEstimator:   filepath.Join(modelRoot, `vector_estimator.int8.onnx`),
+					Vocoder:           filepath.Join(modelRoot, `vocoder.int8.onnx`),
+					TtsJson:           filepath.Join(modelRoot, `tts.json`),
+					UnicodeIndexer:    filepath.Join(modelRoot, `unicode_indexer.bin`),
+					VoiceStyle:        filepath.Join(modelRoot, `voice.bin`),
+				},
+				NumThreads: 4,
+			},
+		}
+
+		tts := sherpa.NewOfflineTts(&ttsCfg)
+		if tts == nil {
+			return nil, errors.New("failed to initialize TTS")
+		}
+
+		return tts, nil
+	}
+
+	if strings.HasPrefix(model.Name, "matcha") {
+		ttsCfg := sherpa.OfflineTtsConfig{
+			Model: sherpa.OfflineTtsModelConfig{
+				Matcha: sherpa.OfflineTtsMatchaModelConfig{
+					AcousticModel: filepath.Join(modelRoot, "model-steps-3.onnx"),
+					Vocoder:       filepath.Join(modelRoot, "vocos-22khz-univ.onnx"),
+					Tokens:        filepath.Join(modelRoot, "tokens.txt"),
+					// Lexicon:       filepath.Join(modelRoot, "lexicon.txt"),
+					DataDir:     filepath.Join(modelRoot, "espeak-ng-data"),
+					NoiseScale:  0.667,
+					LengthScale: 1.0,
+				},
+				NumThreads: 4,
+			},
+		}
+
+		tts := sherpa.NewOfflineTts(&ttsCfg)
+		if tts == nil {
+			return nil, errors.New("failed to initialize TTS")
+		}
+
+		return tts, nil
+	}
 
 	ttsCfg := sherpa.OfflineTtsConfig{
 		Model: sherpa.OfflineTtsModelConfig{
 			Vits: sherpa.OfflineTtsVitsModelConfig{
 				Model:   model.ModelFile,
-				Tokens:  filepath.Join(modelRoot, tokensFile),
-				DataDir: filepath.Join(modelRoot, espeakDir),
+				Tokens:  filepath.Join(modelRoot, "tokens.txt"),
+				DataDir: filepath.Join(modelRoot, "espeak-ng-data"),
 			},
 			NumThreads: 4,
 		},
