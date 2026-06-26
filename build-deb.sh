@@ -5,7 +5,7 @@ set -euo pipefail
 VERSION="1.0.3"
 ARCH="amd64"
 
-GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
+go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
 
 BIN_SRC="$HOME/tts/go-speak"
 MODEL_SRC="$HOME/tts/vits-piper-en_US-libritts_r-medium"

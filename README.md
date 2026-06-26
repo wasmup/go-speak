@@ -69,7 +69,10 @@ go install -trimpath -ldflags="-s -w"
 # Build
 
 ```sh
-./build-deb.sh 
+export GOAMD64=v1 
+echo $GOAMD64
+go clean
+./build-deb.sh
 
 cd ./build/
 echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
