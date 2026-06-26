@@ -25,7 +25,7 @@ This tool is designed to be simple, lightweight, and easy to hack.
 
 ## Screenshot
 
-![Screenshot](2026-06-19_183232_808.png)
+![Screenshot](2026-06-26_113930_881.png)
 
 ---
 
