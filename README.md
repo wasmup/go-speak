@@ -86,6 +86,9 @@ dpkg-deb -f go-speak-1.0.4-linux-amd64.deb
 # install
 sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
 
+# remove
+# sudo dpkg --purge  go-speak
+
 # run
 /opt/go-speak/go-speak 
 

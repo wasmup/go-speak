@@ -40,7 +40,7 @@ func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 		ttsCfg := sherpa.OfflineTtsConfig{
 			Model: sherpa.OfflineTtsModelConfig{
 				Matcha: sherpa.OfflineTtsMatchaModelConfig{
-					AcousticModel: filepath.Join(modelRoot, "model-steps-3.onnx"),
+					AcousticModel: filepath.Join(modelRoot, "model.onnx"), // model-steps-3.onnx
 					Vocoder:       filepath.Join(modelRoot, "vocos-22khz-univ.onnx"),
 					Tokens:        filepath.Join(modelRoot, "tokens.txt"),
 					// Lexicon:       filepath.Join(modelRoot, "lexicon.txt"),
