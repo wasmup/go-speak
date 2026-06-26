@@ -47,10 +47,10 @@ This tool is designed to be simple, lightweight, and easy to hack.
 
 ```sh
 # Valiadte sha256sum
-echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
+echo "$(cat go-speak-1.0.4-linux-amd64.deb.sha256)" | sha256sum --check
 
 # install
-sudo dpkg -i go-speak-1.0.3-linux-amd64.deb
+sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
 
 ```
 
@@ -75,10 +75,14 @@ go clean
 ./build-deb.sh
 
 cd ./build/
-echo "$(cat go-speak-1.0.3-linux-amd64.deb.sha256)" | sha256sum --check
+echo "$(cat go-speak-1.0.4-linux-amd64.deb.sha256)" | sha256sum --check
 
-dpkg-deb -f go-speak-1.0.3-linux-amd64.deb
+ls -lh  go-speak-1.0.4-linux-amd64.deb
 
+dpkg-deb -f go-speak-1.0.4-linux-amd64.deb
+
+# install
+sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
 
 # run
 /opt/go-speak/go-speak 

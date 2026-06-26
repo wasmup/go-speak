@@ -1,45 +1,35 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# ---- Config ----
-VERSION="1.0.3"
+VERSION="1.0.4"
 ARCH="amd64"
 
-go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
-
-BIN_SRC="$HOME/tts/go-speak"
-MODEL_SRC="$HOME/tts/vits-piper-en_US-libritts_r-medium"
-
 BUILD_DIR="./build"
+rm -rf "$BUILD_DIR"
+mkdir -p "$BUILD_DIR"
+
+go build -trimpath -ldflags="-s -w" -o $BUILD_DIR/go-speak
+
+BIN_SRC="$BUILD_DIR/go-speak"
+
 PKG_DIR="$BUILD_DIR/pkg"
 INSTALL_ROOT="$PKG_DIR/opt/go-speak"
 DEB_NAME="go-speak-${VERSION}-linux-${ARCH}.deb"
 DEB_PATH="$BUILD_DIR/$DEB_NAME"
 SHA256_PATH="$DEB_PATH.sha256"
 
-# ---- Checks ----
 if [[ ! -f "$BIN_SRC" ]]; then
     echo "Binary not found: $BIN_SRC"
     exit 1
 fi
 
-if [[ ! -d "$MODEL_SRC" ]]; then
-    echo "Model directory not found: $MODEL_SRC"
-    exit 1
-fi
-
-# ---- Clean ----
-rm -rf "$BUILD_DIR"
 
 mkdir -p "$INSTALL_ROOT"
 mkdir -p "$PKG_DIR/DEBIAN"
 mkdir -p "$PKG_DIR/usr/local/bin"
 
-# ---- Copy files ----
 cp "$BIN_SRC" "$INSTALL_ROOT/"
-cp -r "$MODEL_SRC" "$INSTALL_ROOT/"
 
-# ---- Control file ----
 cat > "$PKG_DIR/DEBIAN/control" <<EOF
 Package: go-speak
 Version: $VERSION
@@ -53,7 +43,6 @@ Description: Offline TTS web player using Sherpa-ONNX
  Uses Sherpa-ONNX and plays audio via aplay.
 EOF
 
-# ---- Launcher wrapper ----
 cat > "$PKG_DIR/usr/local/bin/go-speak" <<'EOF'
 #!/bin/sh
 exec /opt/go-speak/go-speak -m /opt/go-speak "$@"
@@ -62,10 +51,8 @@ EOF
 chmod 0755 "$PKG_DIR/usr/local/bin/go-speak"
 chmod 0755 "$INSTALL_ROOT/go-speak"
 
-# ---- Build deb ----
 dpkg-deb --root-owner-group --build "$PKG_DIR" "$DEB_PATH"
 
-# ---- SHA256 checksum ----
 (
     cd "$BUILD_DIR"
     sha256sum "$DEB_NAME" > "$DEB_NAME.sha256"

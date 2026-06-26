@@ -137,20 +137,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	}
 
 	modelName := r.FormValue("model_name")
-	if modelName != "" {
-		idx := -1
-		for i := range a.cfg.Models {
-			if a.cfg.Models[i].Name == modelName {
-				idx = i
-				break
-			}
-		}
-		if idx < 0 {
-			http.Error(w, "invalid model_name", http.StatusBadRequest)
-			return
-		}
-		a.cfg.Index = idx
-	}
+	a.cfg.Index = a.cfg.ModelIndex(modelName)
 
 	splitChars := r.FormValue("split")
 	if splitChars == "" {

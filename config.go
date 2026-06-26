@@ -19,7 +19,17 @@ type Config struct {
 	StartupText string  // loaded startup text
 
 	Models []Model // TTS models
-	Index  int     // selected model file index
+	Name   string  // selected model name
+	Index  int     // selected model index
+}
+
+func (cfg *Config) ModelIndex(modelName string) int {
+	for i := range cfg.Models {
+		if cfg.Models[i].Name == modelName {
+			return i
+		}
+	}
+	return 0
 }
 
 type Model struct {
@@ -34,6 +44,7 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flag.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flag.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
+	flag.StringVar(&cfg.Name, "name", "vits-piper-en_US-libritts_r-medium", "pre selected TTS model name")
 
 	flag.Int64Var(&cfg.SID, "sid", 7, "default speaker id")
 	flag.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
@@ -76,6 +87,8 @@ func ParseFlags() (*Config, error) {
 			Name:      filepath.Base(filepath.Dir(f)),
 		})
 	}
+
+	cfg.Index = cfg.ModelIndex(cfg.Name)
 
 	return cfg, nil
 }
