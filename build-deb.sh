@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # ---- Config ----
-VERSION="1.0.2"
+VERSION="1.0.3"
 ARCH="amd64"
 
 GOAMD64=v1 go build -trimpath -ldflags="-s -w" -o ~/tts/go-speak
