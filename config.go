@@ -27,7 +27,7 @@ func ParseFlags() (*Config, error) {
 	flag.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flag.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
 
-	flag.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
+	flag.Int64Var(&cfg.SID, "sid", 7, "default speaker id")
 	flag.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
 
 	flag.Parse()
