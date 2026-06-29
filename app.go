@@ -79,7 +79,9 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 			if cleaned, err := Clean(s); err != nil {
 				fmt.Println(`LLM error:`, err)
 			} else {
+				fmt.Println(`LLM in:`, s)
 				s = cleaned
+				fmt.Println(`LLM out:`, s)
 			}
 		}
 
