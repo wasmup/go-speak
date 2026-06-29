@@ -9,8 +9,13 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 )
 
+const useLLM = true
+
 type App struct {
 	cfg *Config
+
+	cleaner  *Cleaner
+	sentence *SentenceSplitter
 
 	// TTS engine
 	tts   *sherpa.OfflineTts
@@ -37,8 +42,8 @@ type App struct {
 	currentSentence atomic.Value // string
 }
 
-func NewApp(cfg *Config) (*App, error) {
-	a := &App{
+func NewApp(cfg *Config) (a *App, err error) {
+	a = &App{
 		cfg: cfg,
 	}
 	a.cond = sync.NewCond(&a.mu)
@@ -46,6 +51,13 @@ func NewApp(cfg *Config) (*App, error) {
 	a.sid.Store(int64(cfg.SID))
 	a.speedX100.Store(int64(cfg.Speed * 100))
 	a.currentSentence.Store("")
+
+	a.cleaner, err = NewCleaner()
+	if err != nil {
+		return
+	}
+
+	a.sentence = NewSentenceSplitter()
 
 	return a, nil
 }
@@ -63,6 +75,14 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 	}()
 
 	for i, s := range sentences {
+		if useLLM && needsLLMClean(s) {
+			if cleaned, err := Clean(s); err != nil {
+				fmt.Println(`LLM error:`, err)
+			} else {
+				s = cleaned
+			}
+		}
+
 		if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
 			fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 			return

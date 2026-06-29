@@ -156,13 +156,10 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		text = removeChars(text, exclude)
 	}
 
-	if cleaned, err := Clean(text); err != nil {
-		fmt.Println(`LLM error:`, err)
-	} else {
-		text = cleaned
-	}
+	text = a.cleaner.Clean(text)
 
-	sentences := splitSentences(text, splitChars)
+	// sentences := splitSentences(text, splitChars)
+	sentences := a.sentence.Split(text)
 	if len(sentences) == 0 {
 		http.Error(w, "empty text", 400)
 		return

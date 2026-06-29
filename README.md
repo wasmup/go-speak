@@ -114,6 +114,8 @@ Download TTS model [here](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts
 wget -c https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2
 tar -xjf vits-piper-en_US-libritts_r-medium.tar.bz2
 
+
+
 ```
 
 Expected root model directory layout:
@@ -319,7 +321,8 @@ index.html     embedded web UI
 
 - Only tested with Piper VITS models.
 - Playback currently depends on `aplay` (ALSA).
-- Sentence splitting is simple and punctuation‑based (. ! ?). Abbreviations such as "Dr." are not handled.
+- Sentence splitting is simple regex/dictionary cleaner then sentence splitter and optional LLM cleaner per sentence.
+
 
 ---
 
