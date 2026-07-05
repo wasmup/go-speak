@@ -113,7 +113,6 @@
     <div id="topbar">
 
         <div class="controls">
-
             <label for="model_name">Model</label>
             <select id="model_name" name="model_name">
                 {{range $i, $m := .Models}}
@@ -122,10 +121,6 @@
                 </option>
                 {{end}}
             </select>
-
-
-
-
             <button id="btnPlay" onclick="play()">Play</button>
             <button id="btnPause" onclick="togglePause()">Pause</button>
             <button id="btnStop" onclick="stop()">Stop</button>
@@ -141,6 +136,10 @@
             Speed:
             <input id="speed" type="number" value="{{ .Speed }}" min="0.2" step="0.05" max="4" oninput="updateSpeed()">
         </label>
+
+        <div id="status-bar">
+            <span>Speed: <b id="wpm-display">0</b> WPM</span>
+        </div>
 
         <label>
             Exclude chars:
@@ -170,7 +169,7 @@
     <script>
         let progressTimer = null;
         let isPaused = false;
-
+        
         async function togglePause() {
             const resp = await fetch('/pause', { method: 'POST' });
             const data = await resp.json();
@@ -210,10 +209,10 @@
 
         async function updateProgress() {
             try {
-                const resp = await fetch("/progress");
-                if (!resp.ok) throw new Error("Network response was not ok");
-
-                const p = await resp.json();
+                const res = await fetch("/progress");
+                if (!res.ok) throw new Error("Network response was not ok");
+                const data = await res.json();
+                document.getElementById('wpm-display').innerText = data.wpm;
 
                 const progress = document.getElementById("progress");
                 const progressText = document.getElementById("progressText");
@@ -221,12 +220,12 @@
                 const btnPause = document.getElementById("btnPause");
 
                 progress.max = 100;
-                progress.value = p.percent;
-                progressText.textContent = `${p.done} / ${p.total} chunks (${p.percent}%)`;
+                progress.value = data.percent;
+                progressText.textContent = `${data.done} / ${data.total} chunks (${data.percent}%)`;
 
-                currentSentence.textContent = p.current || "";
+                currentSentence.textContent = data.current || "";
 
-                if (!p.playing) {
+                if (!data.playing) {
                     btnPause.innerText = 'Pause';
                     isPaused = false;
                     stopProgressPolling();
@@ -269,6 +268,7 @@
             const exclude = document.getElementById("exclude").value
             const split = document.getElementById("split").value
             const model_name = document.getElementById("model_name").value
+
 
             fetch("/play", {
                 method: "POST",

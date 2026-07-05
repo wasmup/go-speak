@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 )
@@ -40,6 +43,8 @@ type App struct {
 	playSessionID atomic.Int64
 
 	currentSentence atomic.Value // string
+
+	currentWPM int
 }
 
 func NewApp(cfg *Config) (a *App, err error) {
@@ -74,14 +79,14 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 		}
 	}()
 
-	for i, s := range sentences {
-		if useLLM && needsLLMClean(s) {
-			if cleaned, err := Clean(s); err != nil {
+	for i, sentence := range sentences {
+		if useLLM && needsLLMClean(sentence) {
+			if cleaned, err := Clean(sentence); err != nil {
 				fmt.Println(`LLM error:`, err)
 			} else {
-				fmt.Println(`LLM in:`, s)
-				s = cleaned
-				fmt.Println(`LLM out:`, s)
+				fmt.Println(`LLM in:`, sentence)
+				sentence = cleaned
+				fmt.Println(`LLM out:`, sentence)
 			}
 		}
 
@@ -90,14 +95,16 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 			return
 		}
 
-		a.currentSentence.Store(s)
+		a.currentSentence.Store(sentence)
 
 		sid := int(a.sid.Load())
 		speed := float32(a.speedX100.Load()) / 100
 
 		a.ttsMu.Lock()
-		audio := a.tts.Generate(s, sid, speed)
+		audio := a.tts.Generate(sentence, sid, speed)
 		a.ttsMu.Unlock()
+		words := len(strings.Fields(sentence))
+		var duration time.Duration
 		for { // pause resume
 			if ctx.Err() != nil || a.playSessionID.Load() != sessionID {
 				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
@@ -118,8 +125,10 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 				return
 			}
-			fmt.Println(sessionID, i, s)
+			fmt.Println(sessionID, i, sentence)
+			start := time.Now()
 			err := play(sentCtx, audio)
+			duration += time.Since(start)
 			sentCancel() // Cleanup
 			if err != nil {
 				a.mu.Lock()
@@ -132,6 +141,14 @@ func (a *App) Playback(ctx context.Context, sessionID int64, sentences []string)
 					fmt.Println(sessionID, i, `stopped:`, err)
 				}
 			}
+			if duration > 0 {
+				wpm := int(float64(words) / duration.Minutes())
+				a.mu.Lock()
+				a.currentWPM = wpm
+				a.mu.Unlock()
+				log.Printf("Current WPM: %d", wpm)
+			}
+
 			if a.playSessionID.Load() != sessionID {
 				fmt.Println(sessionID, i, `sessionID`, a.playSessionID.Load())
 				return

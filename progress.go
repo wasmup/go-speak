@@ -21,18 +21,22 @@ func (a *App) handleProgress(w http.ResponseWriter, r *http.Request) {
 		percent = done * 100 / total
 	}
 
-	resp := ProgressResponse{
+	p := ProgressResponse{
 		Done:    done,
 		Total:   total,
 		Playing: playing,
 		Percent: percent,
 	}
 	if v := a.currentSentence.Load(); v != nil {
-		resp.Current, _ = v.(string)
+		p.Current, _ = v.(string)
 	}
 
+	a.mu.Lock()
+	p.WPM = a.currentWPM
+	a.mu.Unlock()
+
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(p)
 }
 
 type ProgressResponse struct {
@@ -41,4 +45,5 @@ type ProgressResponse struct {
 	Playing bool   `json:"playing"`
 	Percent int64  `json:"percent"`
 	Current string `json:"current"`
+	WPM     int    `json:"wpm"`
 }
