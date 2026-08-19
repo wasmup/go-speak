@@ -1,11 +1,22 @@
 # Local Linux TTS Web Player (Go + Sherpa-ONNX)
 
-A small self‑contained web app for **offline text‑to‑speech playback** on Linux.  
+A small self‑contained web app for **offline text‑to‑speech playback** on Linux.
 It runs a local HTTP server, generates speech using **Sherpa‑ONNX**, and plays audio through **aplay** on Linux.
 
 The UI lets you paste text, adjust speaker and speed, and monitor playback progress in real time.
 
 This tool is designed to be simple, lightweight, and easy to hack.
+
+---
+
+## How It Works
+
+1. The text is split into sentences.
+2. Each sentence is synthesized using Sherpa‑ONNX.
+3. Generated audio is streamed to `aplay`.
+4. The browser polls `/progress` to update UI state.
+
+Playback runs in a background goroutine with cancellation support.
 
 ---
 
@@ -41,21 +52,6 @@ This tool is designed to be simple, lightweight, and easy to hack.
 
 ---
 
-## Releases Install
-
-[releases](https://github.com/wasmup/go-speak/releases)
-
-```sh
-# Valiadte sha256sum
-echo "$(cat go-speak-1.0.4-linux-amd64.deb.sha256)" | sha256sum --check
-# go-speak-1.0.4-linux-amd64.deb: OK
-
-
-# install
-sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
-
-```
-
 ## Source Install
 
 Clone the repository:
@@ -66,37 +62,6 @@ cd go-speak
 
 
 go install -trimpath -ldflags="-s -w"
-```
-
-# Build
-
-```sh
-export GOAMD64=v1 
-echo $GOAMD64
-go clean
-./build-deb.sh
-
-cd ./build/
-echo "$(cat go-speak-1.0.4-linux-amd64.deb.sha256)" | sha256sum --check
-
-ls -lh  go-speak-1.0.4-linux-amd64.deb
-
-dpkg-deb -f go-speak-1.0.4-linux-amd64.deb
-
-# install
-sudo dpkg -i go-speak-1.0.4-linux-amd64.deb
-
-# remove
-# sudo dpkg --purge  go-speak
-
-# run
-/opt/go-speak/go-speak 
-
-# run with model dir:
-/opt/go-speak/go-speak -m /opt/go-speak
-
-go version -m /opt/go-speak/go-speak
-
 ```
 
 ---
@@ -132,7 +97,7 @@ Expected root model directory layout:
                  ├── en_US-amy-medium.onnx
                  ├── tokens.txt
                  └── espeak-ng-data/
-                 
+
 ```
 
 Default model directory:
@@ -188,28 +153,17 @@ Load a startup text:
 
 Controls:
 
-**Play**  
+**Play**
 Start speaking the text.
 
-**Stop**  
+**Stop**
 Stop playback immediately.
 
-**Speaker ID**  
+**Speaker ID**
 Select the voice speaker (depends on the model).
 
-**Speed**  
+**Speed**
 Adjust speech speed (0.2 – 4.0).
-
----
-
-## How It Works
-
-1. The text is split into sentences.
-2. Each sentence is synthesized using Sherpa‑ONNX.
-3. Generated audio is streamed to `aplay`.
-4. The browser polls `/progress` to update UI state.
-
-Playback runs in a background goroutine with cancellation support.
 
 ---
 
