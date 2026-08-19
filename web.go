@@ -144,8 +144,8 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		splitChars = `.!?:"“”`
 	}
 
-	text := r.FormValue("text")
-	text = removeEmptyLines(text, true)
+	textOriginal := r.FormValue("text")
+	text := removeEmptyLines(textOriginal, true)
 	if text == "" {
 		http.Error(w, "empty text", 400)
 		return
@@ -156,7 +156,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		text = removeChars(text, exclude)
 	}
 
-	text = a.cleaner.Clean(text)
+	// text = a.cleaner.Clean(text)
 
 	// sentences := splitSentences(text, splitChars)
 	sentences := a.sentence.Split(text)
@@ -193,7 +193,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	json.NewEncoder(w).Encode(PlayResponse{
-		Text: text, // strings.Join(sentences, "\n"),
+		Text: textOriginal, //strings.Join(sentences, "\n"),
 	})
 }
 

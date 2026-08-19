@@ -46,7 +46,9 @@ func NewSentenceSplitter() *SentenceSplitter {
 
 	return &SentenceSplitter{
 		abbr: abbrMap,
-		re:   regexp.MustCompile(`([.!?])\s+`),
+		// Keep the sentence-ending punctuation (and any immediately following
+		// closing quotes/brackets) with the sentence passed to TTS.
+		re: regexp.MustCompile(`[.!?]+[”"')\]]*\s+`),
 	}
 }
 
@@ -67,18 +69,24 @@ func (s *SentenceSplitter) restoreAbbreviations(text string) string {
 func (s *SentenceSplitter) Split(text string) []string {
 	text = s.protectAbbreviations(text)
 
-	parts := s.re.Split(text, -1)
-
-	sentences := make([]string, 0, len(parts))
-
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
+	sentences := make([]string, 0)
+	start := 0
+	for _, match := range s.re.FindAllStringIndex(text, -1) {
+		// The match includes the delimiter and following whitespace, so slicing
+		// through it before trimming retains the delimiter.
+		p := strings.TrimSpace(text[start:match[1]])
 		if p == "" {
+			start = match[1]
 			continue
 		}
 
 		p = s.restoreAbbreviations(p)
 		sentences = append(sentences, p)
+		start = match[1]
+	}
+
+	if p := strings.TrimSpace(text[start:]); p != "" {
+		sentences = append(sentences, s.restoreAbbreviations(p))
 	}
 
 	return sentences
