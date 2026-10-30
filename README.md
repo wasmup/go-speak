@@ -8,11 +8,18 @@ Paste text, select a model and speaker, then play, pause, resume, or stop. Progr
 
 Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, an audio player (`pw-play` for PipeWire desktops or `aplay` from `alsa-utils` for ALSA systems), and a compatible TTS model. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
 
+Download the default Supertonic model into a directory owned by your user. This URL is the archive used in the [Sherpa-ONNX Supertonic instructions](https://github.com/k2-fsa/sherpa/blob/master/docs/source/onnx/tts/supertonic.rst). Check the model's license and provenance before use.
+
 ```sh
+mkdir -p "$HOME/tts"
+curl -fL -o /tmp/supertonic-3.tar.bz2 https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2
+tar -xjf /tmp/supertonic-3.tar.bz2 -C "$HOME/tts"
 go mod download
 go build -trimpath -o build/go-speak .
-./build/go-speak -m /opt/go-speak
+./build/go-speak -m "$HOME/tts"
 ```
+
+This requires `curl`, `tar`, and bzip2 support. The extracted directory must be `$HOME/tts/sherpa-onnx-supertonic-3-tts-int8-2026-05-11`. Without `-m`, the model root is `/opt/go-speak`. If the default model is absent, startup fails: install it or specify another installed directory name with `-name`.
 
 Open <http://127.0.0.1:8080>. Run as your regular desktop user with access to your desktop audio session or ALSA device. No root privileges are required.
 
@@ -51,6 +58,8 @@ Download a compatible model from the [Sherpa-ONNX TTS releases](https://github.c
 ```
 
 Each direct child directory is a model. Keep one VITS ONNX graph per directory. Piper VITS is the primary supported layout. Matcha expects an acoustic `model.onnx` or `model-steps-*.onnx` graph, `vocos-22khz-univ.onnx`, `tokens.txt`, and `espeak-ng-data`. Supertonic directories beginning with `sherpa-onnx-supertonic` expect the int8 layout: `duration_predictor.int8.onnx`, `text_encoder.int8.onnx`, `vector_estimator.int8.onnx`, `vocoder.int8.onnx`, `tts.json`, `unicode_indexer.bin`, and `voice.bin`. Kokoro directories beginning with `kokoro` use `model.onnx`, `voices.bin`, `tokens.txt`, and `espeak-ng-data`; optional multilingual dictionaries and lexicons are loaded when present. Extra ONNX files in Kokoro directories are ignored.
+
+For the Piper layout above, start with `./build/go-speak -m /opt/go-speak -name vits-piper-en_US-libritts_r-medium`. The model selector can switch models after the server starts.
 
 Model loading is lazy, on the first Play request. The active engine is reused and released when switching models or shutting down. A failed load is reported as an HTTP error. Set the speaker ID to a value available in the selected model; unavailable values are rejected before generation.
 
@@ -116,6 +125,15 @@ go test -race ./...
 
 The Debian packaging script supports Linux amd64. It writes a `.deb` and SHA-256 checksum under `build/`, bundles the native shared libraries, and installs a wrapper at `/usr/bin/go-speak`. Models are not included. Build on the oldest Debian/Ubuntu release you intend to support and test installation there; native libraries and the compiled executable depend on the target system's glibc and C++ runtime.
 
+On a compatible Debian or Ubuntu machine, install a built package and use the model downloaded above:
+
+```sh
+sudo apt install ./build/go-speak-1.0.5-linux-amd64.deb
+go-speak -m "$HOME/tts"
+```
+
+Use the actual package filename if you built with a different `VERSION`. To validate a release, install the package on a clean target system, start it with the default Supertonic model, open the web interface, and play a short sentence. Confirm that audio is audible and `/progress` reports completion without an error; also check pause and stop. The CI package smoke test only runs `-h` and does not perform synthesis.
+
 CI runs formatting, dependency verification, vet, race tests, package creation, and a packaged executable smoke test. Before releasing, also verify actual synthesis, speaker selection, pause/resume, Stop during generation, model switching, and ALSA playback with your chosen models and audio device. Automated lifecycle tests use a fake speech engine. To test a real Kokoro model, including the four-sentence regression text, run:
 
 ```sh
@@ -127,3 +145,5 @@ That test sends audio to ALSA's null device. Add `GO_SPEAK_TEST_AUDIO_DEVICE=1` 
 ## License
 
 MIT. See [LICENSE](LICENSE). Bundled dependencies retain their own licenses.
+
+The embedded `dict/words_alpha.txt` comes from [dwyl/english-words](https://github.com/dwyl/english-words). That repository displays an Unlicense while its README also attributes copyright in the source word list to another party. Its redistribution terms require clarification before distributing this project's source or binaries; do not assume the project's MIT license covers that data. Model weights are downloaded separately and have their own terms.
