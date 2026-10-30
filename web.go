@@ -14,6 +14,7 @@ import (
 	"log"
 	"math"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ type IndexPageData struct {
 	SID         int64
 	Speed       string
 	StartupText string
+	Cores       int
 }
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +47,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	index := a.modelIndex
 	a.mu.Unlock()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := pageTemplate.Execute(w, IndexPageData{Models: models, Index: index, SID: a.sid.Load(), Speed: fmt.Sprintf("%.02f", float64(a.speedX100.Load())/100), StartupText: a.cfg.StartupText}); err != nil {
+	if err := pageTemplate.Execute(w, IndexPageData{Models: models, Index: index, SID: a.sid.Load(), Speed: fmt.Sprintf("%.02f", float64(a.speedX100.Load())/100), StartupText: a.cfg.StartupText, Cores: runtime.NumCPU()}); err != nil {
 		log.Printf("render index: %v", err)
 	}
 }
@@ -156,6 +158,18 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	if len(chunks) == 0 {
 		http.Error(w, "empty text", 400)
 		return
+	}
+	workers := 1
+	if r.URL.Path == "/save_mp3" && r.PostForm.Get("play_sound") != "true" && r.PostForm.Get("workers") != "" {
+		var err error
+		workers, err = strconv.Atoi(r.PostForm.Get("workers"))
+		if err != nil || workers < 1 || workers > runtime.NumCPU() {
+			http.Error(w, "invalid worker count", 400)
+			return
+		}
+		if workers > len(chunks) {
+			workers = len(chunks)
+		}
 	}
 	if !a.control.TryLock() {
 		http.Error(w, "playback is being configured; retry shortly", http.StatusConflict)
@@ -281,7 +295,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			return nil
 		}
 	}
-	go a.playback(ctx, id, chunks, a.engine, done, output)
+	go a.playback(ctx, id, chunks, a.engine, done, output, workers, a.cfg.Models[index])
 	a.mu.Unlock()
 	if saving {
 		select {

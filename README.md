@@ -136,7 +136,9 @@ go tool pprof -http=':8788' go-speak-heap.pprof
 
 ```
 
-The log's `generate_end` elapsed time covers synthesis per sentence, `audio_end` covers handling each generated chunk (including speaker playback when enabled), and `encode_end` reports the complete ffmpeg encoding time. Model loading is logged separately; compare a first export and a subsequent export to distinguish startup from steady-state costs. Silent export is best for measuring conversion throughput.
+For exports started with sound off, **Workers** sets the maximum number of independent TTS engines, from 1 to the detected CPU count. Results are assembled in sentence order. The setting is fixed when an export starts, including if sound is toggled later. Each engine uses additional memory and its own inference threads, so a high worker count can be slower or exhaust memory; benchmark and reduce it if needed. Exports started with sound on use one engine.
+
+The log's `generate_end` (or `parallel_generate_end` for parallel exports) elapsed time covers synthesis per sentence, `audio_end` covers handling each generated chunk (including speaker playback when enabled), and `encode_end` reports the complete ffmpeg encoding time. Model loading is logged separately; compare a first export and a subsequent export to distinguish startup from steady-state costs. Silent export is best for measuring conversion throughput.
 
 Go CPU profiles cover the Go process, but may not resolve work inside native Sherpa/ONNX libraries; they do not profile the separate Qwen Python worker or ffmpeg process. The heap profile covers live Go-managed allocations at the end of export, not native, Python, or ffmpeg memory. Use the stage timings to identify expensive external or native work, then use platform-specific profilers for those processes if needed. Profile files and logs should be kept locally because they can reveal application details.
 

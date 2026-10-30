@@ -106,7 +106,7 @@ func (a *App) Close() {
 	}
 }
 
-func (a *App) playback(ctx context.Context, id int64, sentences []string, engine speechEngine, done chan struct{}, output func(context.Context, *sherpa.GeneratedAudio) error) {
+func (a *App) playback(ctx context.Context, id int64, sentences []string, engine speechEngine, done chan struct{}, output func(context.Context, *sherpa.GeneratedAudio) error, workers int, model Model) {
 	ctx = withPlaybackTrace(ctx, id, 0, len(sentences))
 	completed := 0
 	outcome := "completed"
@@ -138,12 +138,17 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		}
 		a.mu.Unlock()
 	}
+	var parallel *parallelSynthesis
+	if workers > 1 {
+		parallel = a.startParallelSynthesis(ctx, sentences, model, engine, workers)
+		defer parallel.close()
+	}
 	for i, sentence := range sentences {
 		ctx := withPlaybackTrace(ctx, id, i+1, len(sentences))
 		if ctx.Err() != nil {
 			return
 		}
-		if a.cfg.LLMClean && needsLLMClean(sentence) {
+		if parallel == nil && a.cfg.LLMClean && needsLLMClean(sentence) {
 			finishClean := traceStage(ctx, "clean", "optional_llm=true")
 			cleaned, err := Clean(ctx, sentence)
 			finishClean(fmt.Sprintf("error=%v", err))
@@ -165,22 +170,35 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		}
 		a.progress.Current = sentence
 		a.mu.Unlock()
-		sid, speed := int(a.sid.Load()), float32(a.speedX100.Load())/100
-		finishGenerate := traceStage(ctx, "generate", fmt.Sprintf("text_bytes=%d words=%d sid=%d speed=%.2f", len(sentence), len(strings.Fields(sentence)), sid, speed))
 		var audio *sherpa.GeneratedAudio
 		var generateErr error
-		if contextual, ok := engine.(interface {
-			GenerateContext(context.Context, string, int, float32) (*sherpa.GeneratedAudio, error)
-		}); ok {
-			audio, generateErr = contextual.GenerateContext(ctx, sentence, sid, speed)
+		if parallel != nil {
+			result, ok := parallel.get(ctx, i)
+			if !ok {
+				return
+			}
+			sentence, audio, generateErr = result.sentence, result.audio, result.err
+			a.mu.Lock()
+			if a.sessionID == id {
+				a.progress.Current = sentence
+			}
+			a.mu.Unlock()
 		} else {
-			audio = engine.Generate(sentence, sid, speed)
+			sid, speed := int(a.sid.Load()), float32(a.speedX100.Load())/100
+			finishGenerate := traceStage(ctx, "generate", fmt.Sprintf("text_bytes=%d words=%d sid=%d speed=%.2f", len(sentence), len(strings.Fields(sentence)), sid, speed))
+			if contextual, ok := engine.(interface {
+				GenerateContext(context.Context, string, int, float32) (*sherpa.GeneratedAudio, error)
+			}); ok {
+				audio, generateErr = contextual.GenerateContext(ctx, sentence, sid, speed)
+			} else {
+				audio = engine.Generate(sentence, sid, speed)
+			}
+			result := "audio=nil"
+			if audio != nil {
+				result = fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate)
+			}
+			finishGenerate(result)
 		}
-		result := "audio=nil"
-		if audio != nil {
-			result = fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate)
-		}
-		finishGenerate(result)
 		if ctx.Err() != nil {
 			return
 		}

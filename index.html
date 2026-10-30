@@ -124,6 +124,7 @@
                 {{end}}
             </select>
             <button id="btnSave" onclick="saveMP3()">Save MP3</button>
+            <label>Workers: <input id="workers" type="number" min="1" max="{{ .Cores }}" value="{{ .Cores }}" step="1" title="Parallel synthesis workers for silent export"></label>
             <label><input id="saveSound" type="checkbox" checked onchange="updateSaveSound()"> Play sound while saving</label>
             <button id="btnPlay" onclick="play()">Play</button>
             <button id="btnPause" onclick="togglePause()">Pause</button>
@@ -307,7 +308,8 @@
                     exclude: document.getElementById('exclude').value,
                     split: document.getElementById('split').value,
                     model_name: document.getElementById('model_name').value,
-                    play_sound: document.getElementById('saveSound').checked
+                    play_sound: document.getElementById('saveSound').checked,
+                    workers: document.getElementById('workers').value
                 }) });
                 // Start polling after the request has been sent; retry until the
                 // server has accepted it instead of stopping on the prior idle state.
