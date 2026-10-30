@@ -14,6 +14,8 @@ import (
 
 // Config holds server configuration.
 type Config struct {
+	CPUProfile  string  // optional CPU profile output file
+	HeapProfile string  // optional heap profile output file
 	Addr        string  // HTTP listen address
 	Input       string  // optional startup text file
 	Model       string  // TTS model directory
@@ -56,6 +58,8 @@ func parseFlags(args []string) (*Config, error) {
 	cfg := &Config{}
 	flags := flag.NewFlagSet("go-speak", flag.ContinueOnError)
 
+	flags.StringVar(&cfg.CPUProfile, "cpu-profile", "", "write Go CPU profile to this file until shutdown")
+	flags.StringVar(&cfg.HeapProfile, "heap-profile", "", "write Go heap profile to this file at shutdown")
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flags.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flags.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")

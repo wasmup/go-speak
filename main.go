@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"runtime/pprof"
 	"syscall"
 	"time"
 )
@@ -19,6 +21,38 @@ func run() error {
 	}
 	if err != nil {
 		return err
+	}
+	if cfg.CPUProfile != "" {
+		file, err := os.Create(cfg.CPUProfile)
+		if err != nil {
+			return err
+		}
+		if err := pprof.StartCPUProfile(file); err != nil {
+			file.Close()
+			return err
+		}
+		defer func() {
+			pprof.StopCPUProfile()
+			if err := file.Close(); err != nil {
+				log.Printf("close CPU profile: %v", err)
+			}
+		}()
+	}
+	if cfg.HeapProfile != "" {
+		defer func() {
+			file, err := os.Create(cfg.HeapProfile)
+			if err != nil {
+				log.Printf("create heap profile: %v", err)
+				return
+			}
+			runtime.GC()
+			if err := pprof.WriteHeapProfile(file); err != nil {
+				log.Printf("write heap profile: %v", err)
+			}
+			if err := file.Close(); err != nil {
+				log.Printf("close heap profile: %v", err)
+			}
+		}()
 	}
 	if cfg.Player, err = resolvePlayer(cfg.Player); err != nil {
 		return err

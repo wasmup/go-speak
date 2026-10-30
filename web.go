@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
@@ -299,15 +300,19 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, message, http.StatusInternalServerError)
 			return
 		}
+		encodeStart := time.Now()
+		log.Printf("export session=%d event=encode_start pcm_bytes=%d sample_rate=%d", id, pcm.Len(), sampleRate)
 		cmd := exec.CommandContext(r.Context(), "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "s16le", "-ar", strconv.Itoa(sampleRate), "-ac", "1", "-i", "pipe:0", "-f", "mp3", "pipe:1")
 		duration := float64(pcm.Len()) / 2 / float64(sampleRate)
 		cmd.Stdin = &pcm
 		var encoded, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &encoded, &stderr
 		if err := cmd.Run(); err != nil {
+			log.Printf("export session=%d event=encode_end elapsed=%s error=%v", id, time.Since(encodeStart), err)
 			http.Error(w, "MP3 encoding failed (ffmpeg required): "+strings.TrimSpace(stderr.String())+" "+err.Error(), 500)
 			return
 		}
+		log.Printf("export session=%d event=encode_end elapsed=%s mp3_bytes=%d audio_duration=%.3fs", id, time.Since(encodeStart), encoded.Len(), duration)
 		w.Header().Set("X-Audio-Duration", strconv.FormatFloat(duration, 'f', 6, 64))
 		w.Header().Set("Content-Type", "audio/mpeg")
 		_, _ = w.Write(encoded.Bytes())

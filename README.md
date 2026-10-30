@@ -114,6 +114,26 @@ Startup includes `diagnostics=playback-trace-v1`, the executable path, and selec
 
 If playback stalls, the last stage and its `_waiting` messages identify whether generation, audio delivery, or process exit is blocked. After `audio_input_written`, an `audio_process_waiting` event means all PCM was sent but the player has not exited.
 
+## Profiling MP3 export
+
+For a representative measurement, build the executable and run it with profiling enabled:
+
+```sh
+go build -o /tmp/go-speak-profile .
+/tmp/go-speak-profile -m ~/tts -cpu-profile /tmp/go-speak-cpu.pprof -heap-profile /tmp/go-speak-heap.pprof 2>&1 | tee /tmp/go-speak-profile.log
+```
+
+In the web UI, uncheck **Play sound while saving**, export representative text, and wait for the download. Stop the server with Ctrl+C to finish the CPU profile and write the heap profile. Inspect the results with:
+
+```sh
+go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-cpu.pprof
+go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-heap.pprof
+```
+
+The log's `generate_end` elapsed time covers synthesis per sentence, `audio_end` covers handling each generated chunk (including speaker playback when enabled), and `encode_end` reports the complete ffmpeg encoding time. Model loading is logged separately; compare a first export and a subsequent export to distinguish startup from steady-state costs. Silent export is best for measuring conversion throughput.
+
+Go CPU profiles cover the Go process, but may not resolve work inside native Sherpa/ONNX libraries; they do not profile the separate Qwen Python worker or ffmpeg process. The heap profile covers Go-managed allocations at shutdown, not native, Python, or ffmpeg memory. Use the stage timings to identify expensive external or native work, then use platform-specific profilers for those processes if needed. Profile files and logs should be kept locally because they can reveal application details.
+
 ## Validation and packaging
 
 ```sh
