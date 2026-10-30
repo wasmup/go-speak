@@ -116,23 +116,45 @@ If playback stalls, the last stage and its `_waiting` messages identify whether 
 
 ## Profiling MP3 export
 
-For a representative measurement, build the executable and run it with profiling enabled:
+Profiling is controlled by the `RunProfiling` constant in `profiling.go` (currently `true`). Set it to `false` and rebuild to disable profiling. Each MP3 export starts a CPU profile and saves it along with a heap profile when conversion finishes, before the download begins. Files are overwritten by the next export and are written beside the executable as `go-speak-cpu.pprof` and `go-speak-heap.pprof`; that directory must be writable. Failures are logged and do not prevent the export.
+
+For a representative measurement, build into a writable directory and run:
 
 ```sh
 go build -o /tmp/go-speak-profile .
-/tmp/go-speak-profile -m ~/tts -cpu-profile /tmp/go-speak-cpu.pprof -heap-profile /tmp/go-speak-heap.pprof 2>&1 | tee /tmp/go-speak-profile.log
+/tmp/go-speak-profile -m ~/tts 2>&1 | tee /tmp/go-speak-profile.log
 ```
 
-In the web UI, uncheck **Play sound while saving**, export representative text, and wait for the download. Stop the server with Ctrl+C to finish the CPU profile and write the heap profile. Inspect the results with:
+Uncheck **Play sound while saving**, export representative text, and wait for the download. Inspect the resulting profiles with:
 
 ```sh
 go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-cpu.pprof
 go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-heap.pprof
+
+go tool pprof -http=':8787' go-speak-cpu.pprof
+go tool pprof -http=':8788' go-speak-heap.pprof
+
 ```
 
 The log's `generate_end` elapsed time covers synthesis per sentence, `audio_end` covers handling each generated chunk (including speaker playback when enabled), and `encode_end` reports the complete ffmpeg encoding time. Model loading is logged separately; compare a first export and a subsequent export to distinguish startup from steady-state costs. Silent export is best for measuring conversion throughput.
 
-Go CPU profiles cover the Go process, but may not resolve work inside native Sherpa/ONNX libraries; they do not profile the separate Qwen Python worker or ffmpeg process. The heap profile covers Go-managed allocations at shutdown, not native, Python, or ffmpeg memory. Use the stage timings to identify expensive external or native work, then use platform-specific profilers for those processes if needed. Profile files and logs should be kept locally because they can reveal application details.
+Go CPU profiles cover the Go process, but may not resolve work inside native Sherpa/ONNX libraries; they do not profile the separate Qwen Python worker or ffmpeg process. The heap profile covers live Go-managed allocations at the end of export, not native, Python, or ffmpeg memory. Use the stage timings to identify expensive external or native work, then use platform-specific profilers for those processes if needed. Profile files and logs should be kept locally because they can reveal application details.
+
+---
+
+The profiles point to **native TTS inference as the main CPU cost**. The capture lasted 35.1 seconds and recorded 169.9 CPU-seconds across threads—about 4.8 CPU cores on average.
+
+- **80% of sampled CPU time** appeared in `libonnxruntime.so`.
+- Another **19% appeared in `runtime.cgocall`**, mostly on the Sherpa TTS generation call path. The profile cannot resolve exactly how that time is spent inside native code.
+- The Go PCM conversion and MP3 handling did not appear among the significant CPU samples. The separate ffmpeg process is not included in this profile, so its encoding time needs to be checked in the `encode_end` log entry.
+
+The heap profile shows about **75.6 MB of sampled cumulative Go allocations**, including approximately 43.1 MB attributed to writing PCM samples and 21.1 MB to returned Sherpa audio. At the final heap snapshot, about **3 MB of sampled Go memory** remained live. These figures exclude native ONNX memory and the ffmpeg process, and cumulative allocations cover the process lifetime rather than just this export.
+
+The best next experiment is to benchmark inference settings: compare the current four ONNX threads per model with other thread counts, then compare a small pool of separate engines for silent export. More concurrency may help, but the current run already uses several cores, so it could also cause contention. Measure elapsed export time and memory for the same text and model; the profiles alone can’t establish which configuration will be faster.
+
+As a secondary improvement, the PCM loop in [web.go](web.go) writes one sample at a time. Writing blocks would reduce allocations, though this profile suggests it is unlikely to be the main speedup.
+
+---
 
 ## Validation and packaging
 

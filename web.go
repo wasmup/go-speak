@@ -162,6 +162,11 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer a.control.Unlock()
+	finishProfile := func() {}
+	if r.URL.Path == "/save_mp3" && RunProfiling {
+		finishProfile = startExportProfiling()
+		defer finishProfile()
+	}
 	a.mu.Lock()
 	index := a.modelIndex
 	name := r.PostForm.Get("model_name")
@@ -313,6 +318,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Printf("export session=%d event=encode_end elapsed=%s mp3_bytes=%d audio_duration=%.3fs", id, time.Since(encodeStart), encoded.Len(), duration)
+		finishProfile()
 		w.Header().Set("X-Audio-Duration", strconv.FormatFloat(duration, 'f', 6, 64))
 		w.Header().Set("Content-Type", "audio/mpeg")
 		_, _ = w.Write(encoded.Bytes())
