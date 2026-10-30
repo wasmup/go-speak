@@ -53,6 +53,9 @@ func NewApp(cfg *Config) (*App, error) {
 	}
 	a := &App{cfg: cfg, sentence: NewSentenceSplitter(), modelIndex: cfg.Index,
 		newEngine: func(m Model) (speechEngine, error) {
+			if m.Name == qwenModelName {
+				return newQwenEngine(cfg)
+			}
 			tts, err := NewTTS(m)
 			if err != nil {
 				return nil, err
@@ -162,13 +165,25 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		a.mu.Unlock()
 		sid, speed := int(a.sid.Load()), float32(a.speedX100.Load())/100
 		finishGenerate := traceStage(ctx, "generate", fmt.Sprintf("text_bytes=%d words=%d sid=%d speed=%.2f", len(sentence), len(strings.Fields(sentence)), sid, speed))
-		audio := engine.Generate(sentence, sid, speed)
+		var audio *sherpa.GeneratedAudio
+		var generateErr error
+		if contextual, ok := engine.(interface {
+			GenerateContext(context.Context, string, int, float32) (*sherpa.GeneratedAudio, error)
+		}); ok {
+			audio, generateErr = contextual.GenerateContext(ctx, sentence, sid, speed)
+		} else {
+			audio = engine.Generate(sentence, sid, speed)
+		}
 		result := "audio=nil"
 		if audio != nil {
 			result = fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate)
 		}
 		finishGenerate(result)
 		if ctx.Err() != nil {
+			return
+		}
+		if generateErr != nil {
+			fail("speech synthesis failed: " + generateErr.Error())
 			return
 		}
 		if audio == nil || audio.SampleRate <= 0 || len(audio.Samples) == 0 {

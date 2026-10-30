@@ -10,7 +10,7 @@ import (
 func TestConfigurationValidation(t *testing.T) {
 	root := t.TempDir()
 	for _, args := range [][]string{
-		{"-m", root}, {"-m", root, "-player", "invalid"}, {"-m", root, "-speed", "NaN"}, {"-m", root, "-sid", "-1"},
+		{"-m", root, "-name", ""}, {"-m", root, "-player", "invalid"}, {"-m", root, "-speed", "NaN"}, {"-m", root, "-sid", "-1"},
 		{"-m", root, "-addr", "0.0.0.0:8080"}, {"-m", root, "-name", "missing"},
 	} {
 		if _, err := parseFlags(args); err == nil {
@@ -70,7 +70,7 @@ func TestKokoroDiscoveryIgnoresAuxiliaryGraphs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Models) != 1 || cfg.Models[0].ModelFile != filepath.Join(dir, "model.onnx") {
+	if len(cfg.Models) != 2 || cfg.Models[0].ModelFile != filepath.Join(dir, "model.onnx") {
 		t.Fatalf("unexpected models: %+v", cfg.Models)
 	}
 }

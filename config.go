@@ -22,6 +22,9 @@ type Config struct {
 	Player      string  // auto, pw-play, or aplay
 	LLMClean    bool    // explicitly enable the optional local LLM cleaner
 	StartupText string  // loaded startup text
+	QwenPython  string  // Python executable with qwen-tts installed
+	QwenModel   string  // Hugging Face ID or local CustomVoice model directory
+	QwenDevice  string  // auto, cpu, or cuda device
 
 	Models []Model // TTS models
 	Name   string  // selected model name
@@ -54,7 +57,10 @@ func parseFlags(args []string) (*Config, error) {
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flags.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flags.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
-	flags.StringVar(&cfg.Name, "name", "sherpa-onnx-supertonic-3-tts-int8-2026-05-11", "pre selected TTS model name")
+	flags.StringVar(&cfg.Name, "name", qwenModelName, "pre selected TTS model name")
+	flags.StringVar(&cfg.QwenPython, "qwen-python", localQwenPath("qwen-venv/bin/python", "python3"), "Python executable with qwen-tts installed")
+	flags.StringVar(&cfg.QwenModel, "qwen-model", localQwenPath("qwen-model", "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"), "Qwen CustomVoice model ID or local directory")
+	flags.StringVar(&cfg.QwenDevice, "qwen-device", "auto", "Qwen torch device: auto, cpu, cuda:0")
 
 	flags.Int64Var(&cfg.SID, "sid", 4, "default speaker id")
 	flags.Float64Var(&cfg.Speed, "speed", 1.1, "default speech speed")
@@ -93,7 +99,7 @@ func parseFlags(args []string) (*Config, error) {
 	if cfg.Model == "" {
 		return nil, errors.New("model directory must not be empty")
 	}
-	if _, err := os.Stat(cfg.Model); err != nil {
+	if _, err := os.Stat(cfg.Model); err != nil && !(os.IsNotExist(err) && cfg.Name == qwenModelName) {
 		return nil, fmt.Errorf("model directory error: %w", err)
 	}
 
@@ -117,7 +123,7 @@ func parseFlags(args []string) (*Config, error) {
 	}
 
 	files, err := ModelFiles(cfg.Model)
-	if err != nil {
+	if err != nil && !(os.IsNotExist(err) && cfg.Name == qwenModelName) {
 		return nil, err
 	}
 	m := map[string]bool{}
@@ -131,6 +137,9 @@ func parseFlags(args []string) (*Config, error) {
 			Name:      name,
 		})
 		m[name] = true
+	}
+	if cfg.Name == qwenModelName || len(cfg.Models) > 0 {
+		cfg.Models = append(cfg.Models, Model{Name: qwenModelName})
 	}
 
 	if len(cfg.Models) == 0 {

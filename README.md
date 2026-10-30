@@ -1,6 +1,6 @@
 # Go Speak
 
-An offline text-to-speech player for Linux, with a local web interface, Sherpa-ONNX synthesis, and audio playback through native PipeWire (`pw-play`) or ALSA (`aplay`). Audio plays on the server machine.
+An offline text-to-speech player for Linux, with a local web interface, Qwen3-TTS or Sherpa-ONNX synthesis, and audio playback through native PipeWire (`pw-play`) or ALSA (`aplay`). Audio plays on the server machine.
 
 Paste text, select a model and speaker, then play, pause, resume, or stop. Progress includes the current sentence, words per minute, pause state, and playback errors. Resuming restarts the interrupted sentence.
 
@@ -19,6 +19,24 @@ Open <http://127.0.0.1:8080>. Run as your regular desktop user with access to yo
 The application is an unauthenticated, single-user desktop service. It accepts only loopback IP listen addresses and rejects cross-origin browser requests and non-local Host headers. It is not designed for shared hosting or public reverse proxies.
 
 ## Models
+
+The default is **Qwen3-TTS-12Hz-1.7B-CustomVoice**, using English and speaker ID 4 (Aiden). It runs through a persistent Python worker, loaded on the first Play request. The model stays loaded between sentences. Stop cancels generation by terminating the worker; the next Play reloads it.
+
+Install [uv](https://docs.astral.sh/uv/) and run the CPU setup once:
+
+```sh
+./setup-qwen.sh
+go build -trimpath -o build/go-speak .
+./build/go-speak
+```
+
+Setup downloads Python 3.12, CPU PyTorch, `qwen-tts`, and the model weights into `build/`. Downloads require internet access; generation uses local weights afterward. The app automatically finds `build/qwen-venv` and `build/qwen-model` from the project directory or beside the executable. No ONNX model directory is needed for Qwen. CPU synthesis can be slow; each sentence has a 20-minute deadline including first-load time.
+
+For another installation, use `-qwen-python /path/to/venv/bin/python -qwen-model /path/to/model`. `-qwen-device auto` selects CUDA when available, otherwise CPU. The setup script installs CPU wheels; GPU use requires an appropriate CUDA PyTorch installation in that environment. See the [official Qwen setup](https://github.com/QwenLM/Qwen3-TTS).
+
+Qwen speaker IDs: 0 Ryan, 1 Vivian, 2 Serena, 3 Uncle_Fu, 4 Aiden, 5 Dylan, 6 Eric, 7 Ono_Anna, 8 Sohee. Ryan and Aiden are native English voices. Speed is requested through a natural-language instruction and is approximate, rather than an exact audio time stretch.
+
+Select a Sherpa model with `-name MODEL_DIRECTORY_NAME` or through the model selector. For Sherpa models:
 
 Download a compatible model from the [Sherpa-ONNX TTS releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), verify its provenance, and extract it under the model root. For a Piper VITS model:
 
@@ -39,10 +57,13 @@ Model loading is lazy, on the first Play request. The active engine is reused an
 ```text
 -addr       loopback IP and port (default 127.0.0.1:8080)
 -m          model root (default /opt/go-speak)
--name       initial model directory name (default sherpa-onnx-supertonic-3-tts-int8-2026-05-11)
+-name       initial model name (default Qwen3-TTS-12Hz-1.7B-CustomVoice)
+-qwen-python Python executable with qwen-tts (auto-detected local venv, otherwise python3)
+-qwen-model local Qwen CustomVoice directory or Hugging Face ID
+-qwen-device torch device (default auto; cpu or cuda:0 supported)
 -i          startup UTF-8 text file, at most 256 KiB
--sid        speaker ID (default 0; limited by the selected model)
--speed      speech speed, 0.2–4.0 (default 1.0)
+-sid        speaker ID (default 4; limited by the selected model)
+-speed      speech speed, 0.2–4.0 (default 1.1)
 -llm-clean  enable optional local LLM text cleaning (default false)
 -player     auto, pw-play, or aplay (default auto)
 ```
