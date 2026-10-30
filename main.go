@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
 	"syscall"
 	"time"
@@ -21,9 +20,12 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	if _, err = exec.LookPath("aplay"); err != nil {
+	if cfg.Player, err = resolvePlayer(cfg.Player); err != nil {
 		return err
 	}
+	executable, _ := os.Executable()
+	log.Printf("startup diagnostics=playback-trace-v1 pid=%d executable=%q addr=%q model=%q sid=%d speed=%.2f llm_clean=%t", os.Getpid(), executable, cfg.Addr, cfg.Models[cfg.Index].Name, cfg.SID, cfg.Speed, cfg.LLMClean)
+	log.Printf("Audio player: %s", cfg.Player)
 	app, err := NewApp(cfg)
 	if err != nil {
 		return err
@@ -43,7 +45,7 @@ func run() error {
 	// to finish within the shutdown deadline.
 	app.mu.Lock()
 	app.closed = true
-	app.stopLocked()
+	app.stopLocked("shutdown")
 	app.mu.Unlock()
 	cleaned := make(chan struct{})
 	go func() { app.Close(); close(cleaned) }()
@@ -60,6 +62,7 @@ func run() error {
 }
 
 func main() {
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 	if err := run(); err != nil {
 		log.Print(err)
 		os.Exit(1)

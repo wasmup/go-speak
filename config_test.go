@@ -10,7 +10,7 @@ import (
 func TestConfigurationValidation(t *testing.T) {
 	root := t.TempDir()
 	for _, args := range [][]string{
-		{"-m", root}, {"-m", root, "-speed", "NaN"}, {"-m", root, "-sid", "-1"},
+		{"-m", root}, {"-m", root, "-player", "invalid"}, {"-m", root, "-speed", "NaN"}, {"-m", root, "-sid", "-1"},
 		{"-m", root, "-addr", "0.0.0.0:8080"}, {"-m", root, "-name", "missing"},
 	} {
 		if _, err := parseFlags(args); err == nil {

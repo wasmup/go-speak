@@ -38,8 +38,9 @@ Priority: optional
 Architecture: $ARCH
 Maintainer: wasmup
 Depends: alsa-utils, libc6, libstdc++6, libgcc-s1
+Suggests: pipewire-bin
 Description: Offline TTS web player using Sherpa-ONNX
- A local web UI for text-to-speech playback using ALSA.
+ A local web UI for text-to-speech playback using PipeWire or ALSA.
 CONTROL
 
 cat > "$PKG_DIR/usr/bin/go-speak" <<'WRAPPER'

@@ -229,3 +229,23 @@ func TestConcurrentPlaybackControls(t *testing.T) {
 		t.Fatalf("active state after Close: %+v", a.progress)
 	}
 }
+
+func TestPlaybackCompletesEverySentence(t *testing.T) {
+	a := testApp(t)
+	generated, played := 0, 0
+	a.newEngine = func(Model) (speechEngine, error) { return &fakeEngine{generate: func() { generated++ }}, nil }
+	a.playAudio = func(context.Context, *sherpa.GeneratedAudio) error { played++; return nil }
+	if w := post(a, "/play", url.Values{"text": {"First sentence. Second sentence! Third sentence?"}}); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	a.mu.Lock()
+	done := a.done
+	a.mu.Unlock()
+	waitSignal(t, done)
+	a.mu.Lock()
+	p := a.progress
+	a.mu.Unlock()
+	if generated != 3 || played != 3 || p.Done != 3 || p.Total != 3 || p.Playing || p.Error != "" {
+		t.Fatalf("generated=%d played=%d progress=%+v", generated, played, p)
+	}
+}

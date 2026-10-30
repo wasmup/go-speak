@@ -82,7 +82,7 @@ func (a *App) handleSetSpeed(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleStop(w http.ResponseWriter, r *http.Request) {
 	a.mu.Lock()
-	a.stopLocked()
+	a.stopLocked("stop_request")
 	a.mu.Unlock()
 }
 
@@ -96,6 +96,7 @@ func (a *App) HandlePause(w http.ResponseWriter, r *http.Request) {
 		}
 		a.cond.Broadcast()
 	}
+	log.Printf("playback session=%d event=pause_request paused=%t playing=%t", a.sessionID, a.paused, a.progress.Playing)
 	paused := a.paused
 	a.mu.Unlock()
 	w.Header().Set("Content-Type", "application/json")
@@ -171,19 +172,26 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "application is shutting down", 503)
 		return
 	}
-	a.stopLocked()
+	a.stopLocked("replacement_play_request")
 	id := a.sessionID
 	done := a.done
 	a.mu.Unlock()
+	traceCtx := withPlaybackTrace(r.Context(), id, 0, len(chunks))
+	traceLog(traceCtx, "play_request", "model=%q text_bytes=%d chunks=%d sid=%d speed=%.2f player=%q", a.cfg.Models[index].Name, len(original), len(chunks), a.sid.Load(), float64(a.speedX100.Load())/100, a.cfg.Player)
 	if done != nil {
+		finishWait := traceStage(traceCtx, "previous_worker_wait", "")
 		select {
 		case <-done:
+			finishWait("completed=true")
 		case <-r.Context().Done():
+			finishWait(fmt.Sprintf("error=%v", r.Context().Err()))
 			return
 		}
 	}
 	if a.engine == nil || index != a.modelIndex {
+		finishLoad := traceStage(traceCtx, "model_load", fmt.Sprintf("name=%q path=%q", a.cfg.Models[index].Name, a.cfg.Models[index].ModelFile))
 		engine, err := a.newEngine(a.cfg.Models[index])
+		finishLoad(fmt.Sprintf("error=%v", err))
 		if err != nil {
 			log.Printf("TTS initialization failed: %v", err)
 			http.Error(w, "TTS initialization failed; check server logs", 500)
@@ -211,6 +219,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	a.cancel = cancel
 	a.done = make(chan struct{})
 	a.progress = ProgressResponse{Total: int64(len(chunks)), Playing: true}
+	traceLog(traceCtx, "play_accepted", "speakers=%d", a.speakerCount)
 	go a.playback(ctx, id, chunks, a.engine, a.done)
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(PlayResponse{Text: original})

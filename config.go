@@ -19,6 +19,7 @@ type Config struct {
 	Model       string  // TTS model directory
 	SID         int64   // default speaker id
 	Speed       float64 // default speech speed
+	Player      string  // auto, pw-play, or aplay
 	LLMClean    bool    // explicitly enable the optional local LLM cleaner
 	StartupText string  // loaded startup text
 
@@ -58,6 +59,7 @@ func parseFlags(args []string) (*Config, error) {
 	flags.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
 	flags.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
 
+	flags.StringVar(&cfg.Player, "player", "auto", "audio player: auto, pw-play, or aplay")
 	flags.BoolVar(&cfg.LLMClean, "llm-clean", false, "enable optional text cleaning via localhost:8011")
 
 	if err := flags.Parse(args); err != nil {
@@ -67,6 +69,9 @@ func parseFlags(args []string) (*Config, error) {
 		return nil, errors.New("unexpected positional arguments")
 	}
 
+	if cfg.Player != "auto" && cfg.Player != "aplay" && cfg.Player != "pw-play" {
+		return nil, errors.New("player must be auto, pw-play, or aplay")
+	}
 	if !validSpeed(cfg.Speed) {
 		return nil, errors.New("speed must be between 0.2 and 4")
 	}

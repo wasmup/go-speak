@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"strings"
@@ -57,7 +58,9 @@ func NewApp(cfg *Config) (*App, error) {
 				return nil, err
 			}
 			return &nativeEngine{tts}, nil
-		}, playAudio: play}
+		}, playAudio: func(ctx context.Context, audio *sherpa.GeneratedAudio) error {
+			return playWithPlayer(ctx, audio, cfg.Player)
+		}}
 	a.cond = sync.NewCond(&a.mu)
 	a.sid.Store(cfg.SID)
 	a.speedX100.Store(int64(math.Round(cfg.Speed * 100)))
@@ -66,7 +69,8 @@ func NewApp(cfg *Config) (*App, error) {
 
 // stopLocked invalidates the worker before publishing idle state. A native
 // Generate call cannot be interrupted; the next session waits for it to return.
-func (a *App) stopLocked() {
+func (a *App) stopLocked(reason string) {
+	log.Printf("playback session=%d event=cancel reason=%s playing=%t paused=%t done=%d/%d", a.sessionID, reason, a.progress.Playing, a.paused, a.progress.Done, a.progress.Total)
 	if a.cancel != nil {
 		a.cancel()
 		a.cancel = nil
@@ -85,7 +89,7 @@ func (a *App) Close() {
 	defer a.control.Unlock()
 	a.mu.Lock()
 	a.closed = true
-	a.stopLocked()
+	a.stopLocked("close")
 	done := a.done
 	a.mu.Unlock()
 	if done != nil {
@@ -98,10 +102,20 @@ func (a *App) Close() {
 }
 
 func (a *App) playback(ctx context.Context, id int64, sentences []string, engine speechEngine, done chan struct{}) {
+	ctx = withPlaybackTrace(ctx, id, 0, len(sentences))
+	completed := 0
+	outcome := "completed"
+	traceLog(ctx, "session_start", "sentences=%d", len(sentences))
 	defer close(done)
 	defer func() {
 		a.mu.Lock()
 		defer a.mu.Unlock()
+		if ctx.Err() != nil {
+			outcome = "canceled"
+		} else if a.sessionID != id {
+			outcome = "superseded"
+		}
+		traceLog(ctx, "session_end", "outcome=%s done=%d/%d context_error=%v active_session=%d", outcome, completed, len(sentences), ctx.Err(), a.sessionID)
 		if a.sessionID == id {
 			a.progress.Playing = false
 			a.progress.Paused = false
@@ -111,7 +125,8 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		}
 	}()
 	fail := func(message string) {
-		log.Print(message)
+		outcome = "error"
+		traceLog(ctx, "session_error", "error=%q", message)
 		a.mu.Lock()
 		if a.sessionID == id {
 			a.progress.Error = message
@@ -119,11 +134,15 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		a.mu.Unlock()
 	}
 	for i, sentence := range sentences {
+		ctx := withPlaybackTrace(ctx, id, i+1, len(sentences))
 		if ctx.Err() != nil {
 			return
 		}
 		if a.cfg.LLMClean && needsLLMClean(sentence) {
-			if cleaned, err := Clean(ctx, sentence); err == nil {
+			finishClean := traceStage(ctx, "clean", "optional_llm=true")
+			cleaned, err := Clean(ctx, sentence)
+			finishClean(fmt.Sprintf("error=%v", err))
+			if err == nil {
 				sentence = cleaned
 			} else if ctx.Err() == nil {
 				log.Printf("text cleaning failed: %v", err)
@@ -131,7 +150,9 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		}
 		a.mu.Lock()
 		for a.paused && ctx.Err() == nil {
+			traceLog(ctx, "pause_wait", "paused=true")
 			a.cond.Wait()
+			traceLog(ctx, "pause_wake", "paused=%t context_error=%v", a.paused, ctx.Err())
 		}
 		if ctx.Err() != nil || a.sessionID != id {
 			a.mu.Unlock()
@@ -139,7 +160,14 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		}
 		a.progress.Current = sentence
 		a.mu.Unlock()
-		audio := engine.Generate(sentence, int(a.sid.Load()), float32(a.speedX100.Load())/100)
+		sid, speed := int(a.sid.Load()), float32(a.speedX100.Load())/100
+		finishGenerate := traceStage(ctx, "generate", fmt.Sprintf("text_bytes=%d words=%d sid=%d speed=%.2f", len(sentence), len(strings.Fields(sentence)), sid, speed))
+		audio := engine.Generate(sentence, sid, speed)
+		result := "audio=nil"
+		if audio != nil {
+			result = fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate)
+		}
+		finishGenerate(result)
 		if ctx.Err() != nil {
 			return
 		}
@@ -151,7 +179,9 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		for {
 			a.mu.Lock()
 			for a.paused && ctx.Err() == nil {
+				traceLog(ctx, "pause_wait", "paused=true")
 				a.cond.Wait()
+				traceLog(ctx, "pause_wake", "paused=%t context_error=%v", a.paused, ctx.Err())
 			}
 			if ctx.Err() != nil || a.sessionID != id {
 				a.mu.Unlock()
@@ -161,7 +191,9 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 			a.pauseCancel = sentCancel
 			a.mu.Unlock()
 			start := time.Now()
+			finishAudio := traceStage(ctx, "audio", fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate))
 			err := a.playAudio(sentCtx, audio)
+			finishAudio(fmt.Sprintf("error=%v context_error=%v", err, sentCtx.Err()))
 			duration += time.Since(start)
 			interrupted := sentCtx.Err() != nil
 			sentCancel()
@@ -173,6 +205,7 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 			}
 			// A quick pause/resume still needs to replay the interrupted sentence.
 			if interrupted {
+				traceLog(ctx, "sentence_replay", "reason=interrupted")
 				continue
 			}
 			if err != nil {
@@ -181,6 +214,8 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 			}
 			break
 		}
+		completed = i + 1
+		traceLog(ctx, "sentence_complete", "done=%d/%d audio_elapsed=%s", completed, len(sentences), duration.Round(time.Millisecond))
 		a.mu.Lock()
 		if a.sessionID == id {
 			a.progress.Done = int64(i + 1)

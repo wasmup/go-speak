@@ -1,12 +1,12 @@
 # Go Speak
 
-An offline text-to-speech player for Linux, with a local web interface, Sherpa-ONNX synthesis, and ALSA playback through `aplay`. Audio plays on the server machine.
+An offline text-to-speech player for Linux, with a local web interface, Sherpa-ONNX synthesis, and audio playback through native PipeWire (`pw-play`) or ALSA (`aplay`). Audio plays on the server machine.
 
 Paste text, select a model and speaker, then play, pause, resume, or stop. Progress includes the current sentence, words per minute, pause state, and playback errors. Resuming restarts the interrupted sentence.
 
 ## Build and run
 
-Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, `alsa-utils`, and a compatible TTS model. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
+Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, an audio player (`pw-play` for PipeWire desktops or `aplay` from `alsa-utils` for ALSA systems), and a compatible TTS model. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
 
 ```sh
 go mod download
@@ -14,7 +14,7 @@ go build -trimpath -o build/go-speak .
 ./build/go-speak -m /opt/go-speak
 ```
 
-Open <http://127.0.0.1:8080>. Run as your regular desktop user with access to the ALSA device. No root privileges are required.
+Open <http://127.0.0.1:8080>. Run as your regular desktop user with access to your desktop audio session or ALSA device. No root privileges are required.
 
 The application is an unauthenticated, single-user desktop service. It accepts only loopback IP listen addresses and rejects cross-origin browser requests and non-local Host headers. It is not designed for shared hosting or public reverse proxies.
 
@@ -44,9 +44,12 @@ Model loading is lazy, on the first Play request. The active engine is reused an
 -sid        speaker ID (default 0; limited by the selected model)
 -speed      speech speed, 0.2–4.0 (default 1.0)
 -llm-clean  enable optional local LLM text cleaning (default false)
+-player     auto, pw-play, or aplay (default auto)
 ```
 
 `~` and environment variables are expanded in model and input paths.
+
+Automatic audio selection uses `pw-play` when its executable and a PipeWire session socket are available, otherwise `aplay`. Native PipeWire playback avoids an ALSA-plugin drain hang that can leave playback stuck after the first sentence. Override selection with `-player pw-play` or `-player aplay`. Audio processes have a deadline equal to clip duration plus 10 seconds; device errors and timeouts appear in progress and the UI.
 
 LLM cleaning sends candidate sentences to `http://localhost:8011/v1/chat/completions`, requesting model `ornith-1.0-9b`. It has bounded responses, a 20-second timeout, and follows playback cancellation. If cleaning fails, playback uses the original sentence. Default playback makes no LLM requests.
 
@@ -67,6 +70,18 @@ Text is limited to 256 KiB and the entire form body to 2 MiB. Sentences longer t
 
 A new Play cancels the previous session and waits for its worker before reusing or replacing the engine. Native synthesis cannot be interrupted mid-call; Stop cancels audio immediately and discards synthesis results when they return. Long synthesis can therefore delay the next Play. SIGINT and SIGTERM allow up to 15 seconds for shutdown and native cleanup.
 
+## Playback diagnostics
+
+Playback logs are written to stderr with session and sentence numbers. Capture a run with:
+
+```sh
+go-speak -m ~/tts 2>&1 | tee /tmp/go-speak.log
+```
+
+Startup includes `diagnostics=playback-trace-v1`, the executable path, and selected player. Each sentence reports `generate_start/end`, `audio_process_started`, `audio_input_written`, `audio_process_exited`, and `sentence_complete`. Operations still running after five seconds emit `_waiting` events. Model loading, previous-worker waits, pause/resume, cancellation, and session completion are also logged. Sentence text is not included.
+
+If playback stalls, the last stage and its `_waiting` messages identify whether generation, audio delivery, or process exit is blocked. After `audio_input_written`, an `audio_process_waiting` event means all PCM was sent but the player has not exited.
+
 ## Validation and packaging
 
 ```sh
@@ -78,7 +93,13 @@ go test -race ./...
 
 The Debian packaging script supports Linux amd64. It writes a `.deb` and SHA-256 checksum under `build/`, bundles the native shared libraries, and installs a wrapper at `/usr/bin/go-speak`. Models are not included. Build on the oldest Debian/Ubuntu release you intend to support and test installation there; native libraries and the compiled executable depend on the target system's glibc and C++ runtime.
 
-CI runs formatting, dependency verification, vet, race tests, package creation, and a packaged executable smoke test. Before releasing, also verify actual synthesis, speaker selection, pause/resume, Stop during generation, model switching, and ALSA playback with your chosen models and audio device. Automated lifecycle tests use a fake speech engine and do not establish model quality or hardware compatibility.
+CI runs formatting, dependency verification, vet, race tests, package creation, and a packaged executable smoke test. Before releasing, also verify actual synthesis, speaker selection, pause/resume, Stop during generation, model switching, and ALSA playback with your chosen models and audio device. Automated lifecycle tests use a fake speech engine. To test a real Kokoro model, including the four-sentence regression text, run:
+
+```sh
+GO_SPEAK_KOKORO_MODEL="$HOME/tts/kokoro-en-v0_19" go test -run TestKokoroMultipleSentencePlayback -v
+```
+
+That test sends audio to ALSA's null device. Add `GO_SPEAK_TEST_AUDIO_DEVICE=1` to exercise native PipeWire playback instead, with output volume set to zero. These checks do not establish audible quality or compatibility with every audio device.
 
 ## License
 
