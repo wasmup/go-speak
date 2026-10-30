@@ -274,3 +274,24 @@ func TestSaveMP3(t *testing.T) {
 		t.Fatalf("invalid MP3: %v: %s", err, output)
 	}
 }
+
+func TestSaveMP3OptionalSound(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg unavailable")
+	}
+	a := testApp(t)
+	played := 0
+	a.playAudio = func(context.Context, *sherpa.GeneratedAudio) error { played++; return nil }
+	for _, tc := range []struct {
+		sound string
+		want  int
+	}{{"false", 0}, {"true", 1}} {
+		response := post(a, "/save_mp3", url.Values{"text": {"Hello."}, "play_sound": {tc.sound}})
+		if response.Code != http.StatusOK {
+			t.Fatalf("save failed: %d %s", response.Code, response.Body.String())
+		}
+		if played != tc.want {
+			t.Fatalf("sound=%s: played %d times, want %d", tc.sound, played, tc.want)
+		}
+	}
+}

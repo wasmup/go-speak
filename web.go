@@ -239,6 +239,11 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			if sampleRate != audio.SampleRate {
 				return fmt.Errorf("audio sample rate changed during synthesis")
 			}
+			if r.PostForm.Get("play_sound") == "true" {
+				if err := a.playAudio(ctx, audio); err != nil {
+					return err
+				}
+			}
 			for _, sample := range audio.Samples {
 				if sample > 1 {
 					sample = 1
