@@ -30,7 +30,7 @@ Download a compatible model from the [Sherpa-ONNX TTS releases](https://github.c
     espeak-ng-data/
 ```
 
-Each direct child directory is a model. Keep one VITS ONNX graph per directory. Piper VITS is the primary supported layout. Matcha expects an acoustic `model.onnx` or `model-steps-*.onnx` graph, `vocos-22khz-univ.onnx`, `tokens.txt`, and `espeak-ng-data`. Supertonic directories beginning with `sherpa-onnx-supertonic` expect the int8 layout: `duration_predictor.int8.onnx`, `text_encoder.int8.onnx`, `vector_estimator.int8.onnx`, `vocoder.int8.onnx`, `tts.json`, `unicode_indexer.bin`, and `voice.bin`. Kokoro is not supported.
+Each direct child directory is a model. Keep one VITS ONNX graph per directory. Piper VITS is the primary supported layout. Matcha expects an acoustic `model.onnx` or `model-steps-*.onnx` graph, `vocos-22khz-univ.onnx`, `tokens.txt`, and `espeak-ng-data`. Supertonic directories beginning with `sherpa-onnx-supertonic` expect the int8 layout: `duration_predictor.int8.onnx`, `text_encoder.int8.onnx`, `vector_estimator.int8.onnx`, `vocoder.int8.onnx`, `tts.json`, `unicode_indexer.bin`, and `voice.bin`. Kokoro directories beginning with `kokoro` use `model.onnx`, `voices.bin`, `tokens.txt`, and `espeak-ng-data`; optional multilingual dictionaries and lexicons are loaded when present. Extra ONNX files in Kokoro directories are ignored.
 
 Model loading is lazy, on the first Play request. The active engine is reused and released when switching models or shutting down. A failed load is reported as an HTTP error. Set the speaker ID to a value available in the selected model; unavailable values are rejected before generation.
 

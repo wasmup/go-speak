@@ -20,7 +20,7 @@ func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 	// errors for malformed model layouts.
 	required := []string{model.ModelFile, filepath.Join(modelRoot, "tokens.txt"), filepath.Join(modelRoot, "espeak-ng-data")}
 	if strings.HasPrefix(model.Name, "kokoro") {
-		return nil, errors.New("Kokoro models are not supported; select a VITS, Matcha, or Supertonic model")
+		required = append(required, filepath.Join(modelRoot, "voices.bin"))
 	}
 	if strings.HasPrefix(model.Name, "sherpa-onnx-supertonic") {
 		required = nil
@@ -45,6 +45,31 @@ func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 		if !info.IsDir() && info.Size() == 0 {
 			return nil, fmt.Errorf("empty model asset %s", path)
 		}
+	}
+
+	if strings.HasPrefix(model.Name, "kokoro") {
+		kokoro := sherpa.OfflineTtsKokoroModelConfig{
+			Model: model.ModelFile, Voices: filepath.Join(modelRoot, "voices.bin"),
+			Tokens: filepath.Join(modelRoot, "tokens.txt"), DataDir: filepath.Join(modelRoot, "espeak-ng-data"), LengthScale: 1,
+		}
+		// Multilingual distributions include optional dictionaries and lexicons.
+		if info, err := os.Stat(filepath.Join(modelRoot, "dict")); err == nil && info.IsDir() {
+			kokoro.DictDir = filepath.Join(modelRoot, "dict")
+		}
+		var lexicons []string
+		for _, name := range []string{"lexicon-us-en.txt", "lexicon-gb-en.txt", "lexicon-zh.txt"} {
+			path := filepath.Join(modelRoot, name)
+			if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+				lexicons = append(lexicons, path)
+			}
+		}
+		kokoro.Lexicon = strings.Join(lexicons, ",")
+		cfg := sherpa.OfflineTtsConfig{Model: sherpa.OfflineTtsModelConfig{Kokoro: kokoro, NumThreads: 4}}
+		tts := sherpa.NewOfflineTts(&cfg)
+		if tts == nil {
+			return nil, errors.New("failed to initialize Kokoro TTS")
+		}
+		return tts, nil
 	}
 
 	if strings.HasPrefix(model.Name, "sherpa-onnx-supertonic") {
@@ -147,6 +172,9 @@ func ModelFiles(root string) ([]string, error) {
 
 			if strings.EqualFold(filepath.Ext(child.Name()), ".onnx") {
 				// Multi-file models have one discovery entry, not one per graph.
+				if strings.HasPrefix(entry.Name(), "kokoro") && child.Name() != "model.onnx" {
+					continue
+				}
 				if strings.HasPrefix(entry.Name(), "sherpa-onnx-supertonic") && child.Name() != "duration_predictor.int8.onnx" {
 					continue
 				}
