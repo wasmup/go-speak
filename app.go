@@ -25,23 +25,25 @@ type App struct {
 	sentence *SentenceSplitter
 	// control serializes model ownership and new playback requests. mu protects
 	// all playback/progress state; no native generation or process wait holds mu.
-	control      sync.Mutex
-	mu           sync.Mutex
-	cond         *sync.Cond
-	sid          atomic.Int64
-	speedX100    atomic.Int64
-	engine       speechEngine
-	modelIndex   int
-	speakerCount int
-	newEngine    func(Model) (speechEngine, error)
-	playAudio    func(context.Context, *sherpa.GeneratedAudio) error
-	cancel       context.CancelFunc
-	pauseCancel  context.CancelFunc
-	done         chan struct{}
-	sessionID    int64
-	paused       bool
-	closed       bool
-	progress     ProgressResponse
+	control         sync.Mutex
+	mu              sync.Mutex
+	cond            *sync.Cond
+	sid             atomic.Int64
+	speedX100       atomic.Int64
+	engine          speechEngine
+	modelIndex      int
+	speakerCount    int
+	newEngine       func(Model) (speechEngine, error)
+	playAudio       func(context.Context, *sherpa.GeneratedAudio) error
+	cancel          context.CancelFunc
+	pauseCancel     context.CancelFunc
+	saveSound       bool
+	saveSoundCancel context.CancelFunc
+	done            chan struct{}
+	sessionID       int64
+	paused          bool
+	closed          bool
+	progress        ProgressResponse
 }
 
 func NewApp(cfg *Config) (*App, error) {

@@ -124,7 +124,7 @@
                 {{end}}
             </select>
             <button id="btnSave" onclick="saveMP3()">Save MP3</button>
-            <label><input id="saveSound" type="checkbox"> Play sound while saving</label>
+            <label><input id="saveSound" type="checkbox" onchange="updateSaveSound()"> Play sound while saving</label>
             <button id="btnPlay" onclick="play()">Play</button>
             <button id="btnPause" onclick="togglePause()">Pause</button>
             <button id="btnStop" onclick="stop()">Stop</button>
@@ -282,6 +282,13 @@
                     speed: speed
                 })
             }).catch(showError)
+        }
+
+        function updateSaveSound() {
+            if (!saveController) return;
+            request('/save_sound', { method: 'POST', body: new URLSearchParams({
+                enabled: document.getElementById('saveSound').checked
+            }) }).catch(showError);
         }
 
         async function saveMP3() {

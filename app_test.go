@@ -298,3 +298,30 @@ func TestSaveMP3OptionalSound(t *testing.T) {
 		}
 	}
 }
+
+func TestSaveSoundCanBeTurnedOffDuringPlayback(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg unavailable")
+	}
+	a := testApp(t)
+	started := make(chan struct{})
+	a.playAudio = func(ctx context.Context, _ *sherpa.GeneratedAudio) error {
+		close(started)
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	result := make(chan *httptest.ResponseRecorder, 1)
+	go func() { result <- post(a, "/save_mp3", url.Values{"text": {"Hello."}, "play_sound": {"true"}}) }()
+	waitSignal(t, started)
+	if w := post(a, "/save_sound", url.Values{"enabled": {"false"}}); w.Code != http.StatusOK {
+		t.Fatal(w.Body.String())
+	}
+	select {
+	case w := <-result:
+		if w.Code != http.StatusOK || w.Body.Len() == 0 {
+			t.Fatalf("export failed: %d %s", w.Code, w.Body.String())
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("export did not finish after muting")
+	}
+}

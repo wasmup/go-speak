@@ -13,6 +13,7 @@ func (a *App) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", a.handleIndex)
 	mux.HandleFunc("POST /play", a.handlePlay)
 	mux.HandleFunc("POST /save_mp3", a.handlePlay)
+	mux.HandleFunc("POST /save_sound", a.handleSaveSound)
 	mux.HandleFunc("POST /pause", a.HandlePause)
 	mux.HandleFunc("POST /stop", a.handleStop)
 	mux.HandleFunc("GET /progress", a.handleProgress)

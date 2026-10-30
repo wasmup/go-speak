@@ -232,6 +232,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	sampleRate := 0
 	output := a.playAudio
 	if saving {
+		a.saveSound = r.PostForm.Get("play_sound") == "true"
 		output = func(ctx context.Context, audio *sherpa.GeneratedAudio) error {
 			if sampleRate == 0 {
 				sampleRate = audio.SampleRate
@@ -239,10 +240,26 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			if sampleRate != audio.SampleRate {
 				return fmt.Errorf("audio sample rate changed during synthesis")
 			}
-			if r.PostForm.Get("play_sound") == "true" {
-				if err := a.playAudio(ctx, audio); err != nil {
+			a.mu.Lock()
+			sound := a.saveSound
+			soundCtx, soundCancel := context.WithCancel(ctx)
+			if sound {
+				a.saveSoundCancel = soundCancel
+			}
+			a.mu.Unlock()
+			if sound {
+				err := a.playAudio(soundCtx, audio)
+				a.mu.Lock()
+				a.saveSoundCancel = nil
+				a.mu.Unlock()
+				if err != nil && soundCtx.Err() == nil {
+					soundCancel()
 					return err
 				}
+			}
+			soundCancel()
+			if err := ctx.Err(); err != nil {
+				return err
 			}
 			for _, sample := range audio.Samples {
 				if sample > 1 {
@@ -362,4 +379,17 @@ func removeEmptyLines(s string, join bool) string {
 	}
 
 	return b.String()
+}
+
+func (a *App) handleSaveSound(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+	a.mu.Lock()
+	a.saveSound = r.PostForm.Get("enabled") == "true"
+	if !a.saveSound && a.saveSoundCancel != nil {
+		a.saveSoundCancel()
+	}
+	a.mu.Unlock()
 }
