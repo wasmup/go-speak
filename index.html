@@ -316,11 +316,10 @@
                 try { response = await pending; }
                 finally { clearInterval(saveProgress); await updateProgress(); }
                 const blob = await response.blob();
-                let name = prompt("MP3 filename:", "speech.mp3");
-                if (name === null) return;
-                name = name.trim().replace(/[\\/]/g, "_");
-                if (!name) { showError(new Error("Enter a filename")); return; }
-                if (!name.toLowerCase().endsWith('.mp3')) name += '.mp3';
+                const duration = Number(response.headers.get('X-Audio-Duration'));
+                const name = duration < 60
+                    ? `${Math.max(1, Math.round(duration))}s.mp3`
+                    : `${Math.round(duration / 60)}m.mp3`;
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
                 link.href = url; link.download = name; link.click();

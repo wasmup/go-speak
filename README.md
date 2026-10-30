@@ -6,7 +6,7 @@ Paste text, select a model and speaker, then play, pause, resume, or stop. Progr
 
 ## Build and run
 
-Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, an audio player (`pw-play` for PipeWire desktops or `aplay` from `alsa-utils` for ALSA systems), and a compatible TTS model. MP3 export also requires `ffmpeg` on PATH. Use **Save MP3** to enter a filename and download the generated speech using the selected model and settings. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
+Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, an audio player (`pw-play` for PipeWire desktops or `aplay` from `alsa-utils` for ALSA systems), and a compatible TTS model. MP3 export also requires `ffmpeg` on PATH. Use **Save MP3** to download the generated speech using the selected model and settings. The suggested filename uses the audio duration. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
 
 Download the default Supertonic model into a directory owned by your user. This URL is the archive used in the [Sherpa-ONNX Supertonic instructions](https://github.com/k2-fsa/sherpa/blob/master/docs/source/onnx/tts/supertonic.rst). Check the model's license and provenance before use.
 

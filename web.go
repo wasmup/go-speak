@@ -300,6 +300,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		cmd := exec.CommandContext(r.Context(), "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "s16le", "-ar", strconv.Itoa(sampleRate), "-ac", "1", "-i", "pipe:0", "-f", "mp3", "pipe:1")
+		duration := float64(pcm.Len()) / 2 / float64(sampleRate)
 		cmd.Stdin = &pcm
 		var encoded, stderr bytes.Buffer
 		cmd.Stdout, cmd.Stderr = &encoded, &stderr
@@ -307,6 +308,7 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "MP3 encoding failed (ffmpeg required): "+strings.TrimSpace(stderr.String())+" "+err.Error(), 500)
 			return
 		}
+		w.Header().Set("X-Audio-Duration", strconv.FormatFloat(duration, 'f', 6, 64))
 		w.Header().Set("Content-Type", "audio/mpeg")
 		_, _ = w.Write(encoded.Bytes())
 		return
