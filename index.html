@@ -174,6 +174,7 @@
     <script>
         let progressTimer = null;
         let isPaused = false;
+        let saveController = null;
         function showError(err) { document.getElementById('error').textContent = err.message || String(err); }
         async function request(path, options) {
             const response = await fetch(path, options);
@@ -280,11 +281,17 @@
         }
 
         async function saveMP3() {
+            if (saveController) {
+                saveController.abort();
+                return;
+            }
+            const controller = new AbortController();
+            saveController = controller;
             const button = document.getElementById('btnSave');
             document.getElementById('error').textContent = '';
-            button.disabled = true;
+            button.textContent = 'Cancel save';
             try {
-                const pending = request('/save_mp3', { method: 'POST', body: new URLSearchParams({
+                const pending = request('/save_mp3', { method: 'POST', signal: controller.signal, body: new URLSearchParams({
                     text: document.getElementById('text').value,
                     exclude: document.getElementById('exclude').value,
                     split: document.getElementById('split').value,
@@ -307,8 +314,12 @@
                 const link = document.createElement('a');
                 link.href = url; link.download = name; link.click();
                 setTimeout(() => URL.revokeObjectURL(url), 1000);
-            } catch (err) { showError(err); }
-            finally { button.disabled = false; }
+            } catch (err) {
+                if (err.name !== 'AbortError') showError(err);
+            } finally {
+                saveController = null;
+                button.textContent = 'Save MP3';
+            }
         }
 
         function play() {
