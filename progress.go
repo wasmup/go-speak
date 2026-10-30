@@ -17,12 +17,14 @@ func (a *App) handleProgress(w http.ResponseWriter, r *http.Request) {
 }
 
 type ProgressResponse struct {
-	Done    int64  `json:"done"`
-	Total   int64  `json:"total"`
-	Playing bool   `json:"playing"`
-	Paused  bool   `json:"paused"`
-	Percent int64  `json:"percent"`
-	Current string `json:"current"`
-	WPM     int    `json:"wpm"`
-	Error   string `json:"error,omitempty"`
+	Done     int64   `json:"done"`
+	Total    int64   `json:"total"`
+	Playing  bool    `json:"playing"`
+	Paused   bool    `json:"paused"`
+	Percent  int64   `json:"percent"`
+	Current  string  `json:"current"`
+	WPM      int     `json:"wpm"`
+	Words    int     `json:"words"`
+	Duration float64 `json:"duration"`
+	Error    string  `json:"error,omitempty"`
 }

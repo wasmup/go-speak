@@ -234,8 +234,10 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 		a.mu.Lock()
 		if a.sessionID == id {
 			a.progress.Done = int64(i + 1)
-			if duration > 0 {
-				a.progress.WPM = int(float64(len(strings.Fields(sentence))) / duration.Minutes())
+			a.progress.Words += len(strings.Fields(sentence))
+			a.progress.Duration += float64(len(audio.Samples)) / float64(audio.SampleRate)
+			if a.progress.Duration > 0 {
+				a.progress.WPM = int(math.Round(float64(a.progress.Words) * 60 / a.progress.Duration))
 			}
 		}
 		a.mu.Unlock()

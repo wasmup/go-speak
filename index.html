@@ -141,10 +141,6 @@
             <input id="speed" type="number" value="{{ .Speed }}" min="0.2" step="0.05" max="4" oninput="updateSpeed()">
         </label>
 
-        <div id="status-bar">
-            <span>Speed: <b id="wpm-display">0</b> WPM</span>
-        </div>
-
         <label>
             Exclude chars:
             <input id="exclude" type="text" value="*#">
@@ -155,6 +151,11 @@
             <input id="split" type="text" value='.!?:"“”'>
         </label>
 
+        <div id="status-bar" style="margin-left: auto" aria-label="Completed audio statistics">
+            <span>Words: <b id="word-display">0</b></span> ·
+            <span>Duration: <b id="duration-display">0:00</b></span> ·
+            <span>Speed: <b id="wpm-display">0</b> WPM</span>
+        </div>
     </div>
 
     <div id="error" role="alert" style="color: #a00; padding: 0 10px;"></div>
@@ -227,6 +228,9 @@
                 if (!res.ok) throw new Error("Network response was not ok");
                 const data = await res.json();
                 document.getElementById('wpm-display').innerText = data.wpm;
+                document.getElementById('word-display').innerText = data.words;
+                const seconds = Math.floor(data.duration);
+                document.getElementById('duration-display').innerText = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
                 isPaused = data.paused;
                 document.getElementById('btnPause').innerText = isPaused ? 'Resume' : 'Pause';
                 if (data.error) showError(new Error(data.error));

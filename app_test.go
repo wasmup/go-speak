@@ -249,6 +249,9 @@ func TestPlaybackCompletesEverySentence(t *testing.T) {
 	if generated != 3 || played != 3 || p.Done != 3 || p.Total != 3 || p.Playing || p.Error != "" {
 		t.Fatalf("generated=%d played=%d progress=%+v", generated, played, p)
 	}
+	if p.Words != 6 || p.Duration != 6.0/16000 || p.WPM != 960000 {
+		t.Fatalf("incorrect audio statistics: %+v", p)
+	}
 }
 
 func TestSaveMP3(t *testing.T) {
