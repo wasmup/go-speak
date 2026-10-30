@@ -45,6 +45,8 @@ type Model struct {
 	ModelFile string
 }
 
+const defaultModelName = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
+
 // ParseFlags parses command-line flags and prepares the configuration.
 func ParseFlags() (*Config, error) {
 	return parseFlags(os.Args[1:])
@@ -57,7 +59,7 @@ func parseFlags(args []string) (*Config, error) {
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flags.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flags.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
-	flags.StringVar(&cfg.Name, "name", qwenModelName, "pre selected TTS model name")
+	flags.StringVar(&cfg.Name, "name", defaultModelName, "pre selected TTS model name")
 	flags.StringVar(&cfg.QwenPython, "qwen-python", localQwenPath("qwen-venv/bin/python", "python3"), "Python executable with qwen-tts installed")
 	flags.StringVar(&cfg.QwenModel, "qwen-model", localQwenPath("qwen-model", "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"), "Qwen CustomVoice model ID or local directory")
 	flags.StringVar(&cfg.QwenDevice, "qwen-device", "auto", "Qwen torch device: auto, cpu, cuda:0")

@@ -9,4 +9,4 @@ uv venv --python 3.12 --allow-existing build/qwen-venv
 uv pip install --python build/qwen-venv/bin/python --torch-backend cpu torch torchaudio
 uv pip install --python build/qwen-venv/bin/python --torch-backend cpu 'qwen-tts==0.1.1'
 build/qwen-venv/bin/python -c 'from huggingface_hub import snapshot_download; snapshot_download("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice", local_dir="build/qwen-model")'
-echo 'Qwen is ready. Build and run: go build -o build/go-speak . && ./build/go-speak'
+echo 'Qwen is ready. Build and run: go build -o build/go-speak . && ./build/go-speak -name Qwen3-TTS-12Hz-1.7B-CustomVoice'

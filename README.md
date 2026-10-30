@@ -20,14 +20,16 @@ The application is an unauthenticated, single-user desktop service. It accepts o
 
 ## Models
 
-The default is **Qwen3-TTS-12Hz-1.7B-CustomVoice**, using English and speaker ID 4 (Aiden). It runs through a persistent Python worker, loaded on the first Play request. The model stays loaded between sentences. Stop cancels generation by terminating the worker; the next Play reloads it.
+The default is **sherpa-onnx-supertonic-3-tts-int8-2026-05-11**. Install that model under the model root (default `/opt/go-speak`), or select another installed model with `-name`.
+
+Qwen3-TTS-12Hz-1.7B-CustomVoice is also available, using English and speaker ID 4 (Aiden). It runs through a persistent Python worker, loaded on the first Play request. The model stays loaded between sentences. Stop cancels generation by terminating the worker; the next Play reloads it.
 
 Install [uv](https://docs.astral.sh/uv/) and run the CPU setup once:
 
 ```sh
 ./setup-qwen.sh
 go build -trimpath -o build/go-speak .
-./build/go-speak
+./build/go-speak -name Qwen3-TTS-12Hz-1.7B-CustomVoice
 ```
 
 Setup downloads Python 3.12, CPU PyTorch, `qwen-tts`, and the model weights into `build/`. Downloads require internet access; generation uses local weights afterward. The app automatically finds `build/qwen-venv` and `build/qwen-model` from the project directory or beside the executable. No ONNX model directory is needed for Qwen. CPU synthesis can be slow; each sentence has a 20-minute deadline including first-load time.
@@ -57,7 +59,7 @@ Model loading is lazy, on the first Play request. The active engine is reused an
 ```text
 -addr       loopback IP and port (default 127.0.0.1:8080)
 -m          model root (default /opt/go-speak)
--name       initial model name (default Qwen3-TTS-12Hz-1.7B-CustomVoice)
+-name       initial model name (default sherpa-onnx-supertonic-3-tts-int8-2026-05-11)
 -qwen-python Python executable with qwen-tts (auto-detected local venv, otherwise python3)
 -qwen-model local Qwen CustomVoice directory or Hugging Face ID
 -qwen-device torch device (default auto; cpu or cuda:0 supported)

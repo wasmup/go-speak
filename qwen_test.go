@@ -13,7 +13,7 @@ import (
 )
 
 func TestQwenDefaultWithoutONNXModels(t *testing.T) {
-	cfg, err := parseFlags([]string{"-m", filepath.Join(t.TempDir(), "missing")})
+	cfg, err := parseFlags([]string{"-m", filepath.Join(t.TempDir(), "missing"), "-name", qwenModelName})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +87,7 @@ func TestQwenNativeSynthesis(t *testing.T) {
 	if os.Getenv("GO_SPEAK_QWEN_TEST") != "1" {
 		t.Skip("set GO_SPEAK_QWEN_TEST=1 after Qwen setup")
 	}
-	cfg, err := parseFlags(nil)
+	cfg, err := parseFlags([]string{"-name", qwenModelName})
 	if err != nil {
 		t.Fatal(err)
 	}
