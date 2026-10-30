@@ -26,12 +26,13 @@ var pageHTML string
 var pageTemplate = template.Must(template.New("index").Parse(pageHTML))
 
 type IndexPageData struct {
-	Models      []string
-	Index       int
-	SID         int64
-	Speed       string
-	StartupText string
-	Cores       int
+	Models         []string
+	Index          int
+	SID            int64
+	Speed          string
+	StartupText    string
+	Cores          int
+	DefaultWorkers int
 }
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -47,7 +48,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	index := a.modelIndex
 	a.mu.Unlock()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := pageTemplate.Execute(w, IndexPageData{Models: models, Index: index, SID: a.sid.Load(), Speed: fmt.Sprintf("%.02f", float64(a.speedX100.Load())/100), StartupText: a.cfg.StartupText, Cores: runtime.NumCPU()}); err != nil {
+	if err := pageTemplate.Execute(w, IndexPageData{Models: models, Index: index, SID: a.sid.Load(), Speed: fmt.Sprintf("%.02f", float64(a.speedX100.Load())/100), StartupText: a.cfg.StartupText, Cores: runtime.NumCPU(), DefaultWorkers: max(1, runtime.NumCPU()/2)}); err != nil {
 		log.Printf("render index: %v", err)
 	}
 }
