@@ -39,7 +39,7 @@ Model loading is lazy, on the first Play request. The active engine is reused an
 ```text
 -addr       loopback IP and port (default 127.0.0.1:8080)
 -m          model root (default /opt/go-speak)
--name       initial model directory name (default first discovered model)
+-name       initial model directory name (default sherpa-onnx-supertonic-3-tts-int8-2026-05-11)
 -i          startup UTF-8 text file, at most 256 KiB
 -sid        speaker ID (default 0; limited by the selected model)
 -speed      speech speed, 0.2–4.0 (default 1.0)

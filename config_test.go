@@ -24,11 +24,11 @@ func TestConfigurationValidation(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, "model.onnx"), []byte("placeholder"), 0644); err != nil {
 		t.Fatal(err)
 	}
-	cfg, err := parseFlags([]string{"-m", root})
+	cfg, err := parseFlags([]string{"-m", root, "-name", ""})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.Index != 0 || cfg.LLMClean || cfg.Speed != 1 {
+	if cfg.Index != 0 || cfg.LLMClean || cfg.Speed != 1.1 {
 		t.Fatalf("unexpected defaults: %+v", cfg)
 	}
 	if _, err := parseFlags([]string{"-m", root, "-name", "missing"}); err == nil {

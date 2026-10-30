@@ -54,10 +54,10 @@ func parseFlags(args []string) (*Config, error) {
 	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
 	flags.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
 	flags.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
-	flags.StringVar(&cfg.Name, "name", "", "pre selected TTS model name")
+	flags.StringVar(&cfg.Name, "name", "sherpa-onnx-supertonic-3-tts-int8-2026-05-11", "pre selected TTS model name")
 
-	flags.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
-	flags.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
+	flags.Int64Var(&cfg.SID, "sid", 4, "default speaker id")
+	flags.Float64Var(&cfg.Speed, "speed", 1.1, "default speech speed")
 
 	flags.StringVar(&cfg.Player, "player", "auto", "audio player: auto, pw-play, or aplay")
 	flags.BoolVar(&cfg.LLMClean, "llm-clean", false, "enable optional text cleaning via localhost:8011")
