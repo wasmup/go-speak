@@ -1,0 +1,27 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Check formatting
+        run: test -z "$(gofmt -l *.go)"
+      - run: go mod verify
+      - run: go vet ./...
+      - run: go test -race ./...
+      - name: Build Debian package
+        run: ./build-deb.sh
+      - name: Smoke test packaged executable and native libraries
+        run: |
+          mkdir /tmp/go-speak-package
+          dpkg-deb -x build/go-speak-*-linux-amd64.deb /tmp/go-speak-package
+          LD_LIBRARY_PATH=/tmp/go-speak-package/opt/go-speak/lib /tmp/go-speak-package/opt/go-speak/go-speak -h

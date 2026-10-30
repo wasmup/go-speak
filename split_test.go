@@ -3,6 +3,7 @@ package main
 import (
 	"reflect"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestSentenceSplitterSplitPreservesEndingPunctuation(t *testing.T) {
@@ -37,4 +38,34 @@ func TestSentenceSplitterSplitPreservesEndingPunctuation(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCustomDelimitersAndLiteralTokens(t *testing.T) {
+	s := NewSentenceSplitter()
+	for _, tc := range []struct {
+		text, delimiters string
+		want             []string
+	}{
+		{"One; Two.", ";", []string{"One;", "Two."}},
+		{"One- Two.", "-", []string{"One-", "Two."}},
+		{"__ABBR1__ is literal. Dr. Smith left.", "", []string{"__ABBR1__ is literal.", "Dr. Smith left."}},
+		{"\uE000 is literal. Next!", "", []string{"\uE000 is literal.", "Next!"}},
+	} {
+		if got := s.SplitWithDelimiters(tc.text, tc.delimiters); !reflect.DeepEqual(got, tc.want) {
+			t.Fatalf("got %#v, want %#v", got, tc.want)
+		}
+	}
+}
+
+func FuzzSentenceDelimiters(f *testing.F) {
+	for _, chars := range []string{"-", "]", "\\", "[a-z]", ".!?"} {
+		f.Add(chars)
+	}
+	f.Fuzz(func(t *testing.T, chars string) {
+		// The HTTP layer accepts only bounded, valid UTF-8 delimiter strings.
+		if len(chars) > 128 || !utf8.ValidString(chars) {
+			return
+		}
+		NewSentenceSplitter().SplitWithDelimiters("A sentence. Another sentence!", chars)
+	})
 }

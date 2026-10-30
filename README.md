@@ -1,296 +1,85 @@
-# Local Linux TTS Web Player (Go + Sherpa-ONNX)
+# Go Speak
 
-A small self‑contained web app for **offline text‑to‑speech playback** on Linux.
-It runs a local HTTP server, generates speech using **Sherpa‑ONNX**, and plays audio through **aplay** on Linux.
+An offline text-to-speech player for Linux, with a local web interface, Sherpa-ONNX synthesis, and ALSA playback through `aplay`. Audio plays on the server machine.
 
-The UI lets you paste text, adjust speaker and speed, and monitor playback progress in real time.
+Paste text, select a model and speaker, then play, pause, resume, or stop. Progress includes the current sentence, words per minute, pause state, and playback errors. Resuming restarts the interrupted sentence.
 
-This tool is designed to be simple, lightweight, and easy to hack.
+## Build and run
 
----
-
-## How It Works
-
-1. The text is split into sentences.
-2. Each sentence is synthesized using Sherpa‑ONNX.
-3. Generated audio is streamed to `aplay`.
-4. The browser polls `/progress` to update UI state.
-
-Playback runs in a background goroutine with cancellation support.
-
----
-
-## Features
-
-- Fully **offline TTS**
-- Simple **web interface**
-- **Sentence‑by‑sentence playback**
-- Adjustable **speaker ID**
-- Adjustable **speech speed**
-- Live **progress bar**
-- Shows **currently spoken sentence**
-- Optional **startup text file**
-- No database, frameworks, or external services
-
----
-
-## Screenshot
-
-![Screenshot](2026-06-26_153914_259.png)
-
----
-
-
-## Requirements
-
-- Linux
-- Go **1.22+**
-- `alsa-utils` (provides `aplay`)
-- Sherpa‑ONNX Go bindings
-- A compatible TTS model
-
-
----
-
-## Source Install
-
-Clone the repository:
+Requirements: Linux with glibc, the Go version specified in `go.mod`, a C/C++ compiler, `alsa-utils`, and a compatible TTS model. The Go module supplies native Sherpa-ONNX and ONNX Runtime libraries. Do not use `go mod vendor`: it omits the native libraries needed by these bindings.
 
 ```sh
-git clone git@github.com:wasmup/go-speak.git
-cd go-speak
-
-
-go install -trimpath -ldflags="-s -w"
+go mod download
+go build -trimpath -o build/go-speak .
+./build/go-speak -m /opt/go-speak
 ```
 
----
+Open <http://127.0.0.1:8080>. Run as your regular desktop user with access to the ALSA device. No root privileges are required.
 
-## Model Setup
+The application is an unauthenticated, single-user desktop service. It accepts only loopback IP listen addresses and rejects cross-origin browser requests and non-local Host headers. It is not designed for shared hosting or public reverse proxies.
 
+## Models
 
+Download a compatible model from the [Sherpa-ONNX TTS releases](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), verify its provenance, and extract it under the model root. For a Piper VITS model:
 
-Select/test your model [here](https://huggingface.co/spaces/k2-fsa/text-to-speech)
-
-Download TTS model [here](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models), for example:
-
-
-```sh
-URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2'
-URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2'
-URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2'
-URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2'
-
-wget --timeout=3 -c $URL
-
-tar -xjf vits-piper-en_US-libritts_r-medium.tar.bz2
-
-tar -xjf kokoro-multi-lang-v1_1.tar.bz2
-
-CARGO_HTTP_SSL_VERSION=tlsv1.0
-curl -v -k -LOR --connect-timeout 3 -C - $URL
-
-
-
-```
-
-Expected root model directory layout:
-
-```
-
+```text
 /opt/go-speak/
-             └── vits-piper-en_US-libritts_r-medium
-                 ├── en_US-libritts_r-medium.onnx
-                 ├── tokens.txt
-                 └── espeak-ng-data/
-
-             └── vits-piper-en_US-amy-medium
-                 ├── en_US-amy-medium.onnx
-                 ├── tokens.txt
-                 └── espeak-ng-data/
-
+  vits-piper-en_US-libritts_r-medium/
+    en_US-libritts_r-medium.onnx
+    tokens.txt
+    espeak-ng-data/
 ```
 
-Default model directory:
+Each direct child directory is a model. Keep one VITS ONNX graph per directory. Piper VITS is the primary supported layout. Matcha expects an acoustic `model.onnx` or `model-steps-*.onnx` graph, `vocos-22khz-univ.onnx`, `tokens.txt`, and `espeak-ng-data`. Supertonic directories beginning with `sherpa-onnx-supertonic` expect the int8 layout: `duration_predictor.int8.onnx`, `text_encoder.int8.onnx`, `vector_estimator.int8.onnx`, `vocoder.int8.onnx`, `tts.json`, `unicode_indexer.bin`, and `voice.bin`. Kokoro is not supported.
 
-```
-/opt/go-speak
-```
+Model loading is lazy, on the first Play request. The active engine is reused and released when switching models or shutting down. A failed load is reported as an HTTP error. Set the speaker ID to a value available in the selected model; unavailable values are rejected before generation.
 
-You can override it with `-m`.
+## Options
 
----
-
-## Running
-
-```
-/opt/go-speak/go-speak -m /opt/go-speak -name "vits-piper-en_US-libritts_r-medium"
-```
-
-Open your browser:
-
-```
-http://127.0.0.1:8080
+```text
+-addr       loopback IP and port (default 127.0.0.1:8080)
+-m          model root (default /opt/go-speak)
+-name       initial model directory name (default first discovered model)
+-i          startup UTF-8 text file, at most 256 KiB
+-sid        speaker ID (default 0; limited by the selected model)
+-speed      speech speed, 0.2–4.0 (default 1.0)
+-llm-clean  enable optional local LLM text cleaning (default false)
 ```
 
----
+`~` and environment variables are expanded in model and input paths.
 
-## Command Line Options
-
-```
--addr   HTTP listen address
--i      Startup text file (optional)
--m      TTS model root directory which may contain more the one model
--name   pre selected TTS model name ("vits-piper-en_US-libritts_r-medium")
--sid    Default speaker ID
--speed  Default speech speed
-```
-
-Example:
-
-```
-/opt/go-speak/go-speak -addr 127.0.0.1:8080 -m ~/tts -sid 7 -speed 1.0
-```
-
-Load a startup text:
-
-```
-/opt/go-speak/go-speak -i speech.txt
-```
-
----
-
-## Web Interface
-
-Controls:
-
-**Play**
-Start speaking the text.
-
-**Stop**
-Stop playback immediately.
-
-**Speaker ID**
-Select the voice speaker (depends on the model).
-
-**Speed**
-Adjust speech speed (0.2 – 4.0).
-
----
+LLM cleaning sends candidate sentences to `http://localhost:8011/v1/chat/completions`, requesting model `ornith-1.0-9b`. It has bounded responses, a 20-second timeout, and follows playback cancellation. If cleaning fails, playback uses the original sentence. Default playback makes no LLM requests.
 
 ## HTTP API
 
-### `POST /play`
+POST endpoints use `application/x-www-form-urlencoded` bodies. Query parameters do not change settings. All responses disable caching.
 
-**Exclude chars**
+| Endpoint | Parameters / response |
+| --- | --- |
+| `POST /play` | `text`, optional `model_name`, `exclude` (Unicode characters to remove), `split` (sentence delimiter characters); returns `{"text":"original text"}` |
+| `POST /pause` | Toggle pause; returns `{"paused":true}` or `false` |
+| `POST /stop` | Cancel playback; empty success response |
+| `POST /set_sid` | `sid`; empty success response |
+| `POST /set_speed` | `speed`; empty success response |
+| `GET /progress` | `done`, `total`, `playing`, `paused`, `percent`, `current`, `wpm`, optional `error` |
 
-Characters entered here are removed from the text before playback.
-Example: `*#`
+Text is limited to 256 KiB and the entire form body to 2 MiB. Sentences longer than 1,000 Unicode characters are split into bounded chunks. Invalid input returns 400; oversized text returns 413. Concurrent Play configuration or a Play superseded by Stop returns 409; model initialization failures return 500. Playback failures appear in `/progress` and in the UI.
 
-Start playback.
+A new Play cancels the previous session and waits for its worker before reusing or replacing the engine. Native synthesis cannot be interrupted mid-call; Stop cancels audio immediately and discards synthesis results when they return. Long synthesis can therefore delay the next Play. SIGINT and SIGTERM allow up to 15 seconds for shutdown and native cleanup.
 
-Form parameters:
+## Validation and packaging
 
-```
-text=Hello world.
-exclude=*#
-```
-
-Response:
-
-```
-{
-  "text": "Hello world."
-}
-```
-
----
-
-### `POST /stop`
-
-Stop playback.
-
----
-
-### `GET /progress`
-
-Returns playback status.
-
-Example:
-
-```
-{
-  "done": 2,
-  "total": 5,
-  "playing": true,
-  "percent": 40,
-  "current": "This is the sentence being spoken."
-}
+```sh
+go mod verify
+go vet ./...
+go test -race ./...
+./build-deb.sh
 ```
 
----
+The Debian packaging script supports Linux amd64. It writes a `.deb` and SHA-256 checksum under `build/`, bundles the native shared libraries, and installs a wrapper at `/usr/bin/go-speak`. Models are not included. Build on the oldest Debian/Ubuntu release you intend to support and test installation there; native libraries and the compiled executable depend on the target system's glibc and C++ runtime.
 
-### `POST /set_sid`
-
-Set speaker ID.
-
-```
-sid=7
-```
-
----
-
-### `POST /set_speed`
-
-Set speech speed.
-
-```
-speed=1.2
-```
-
-Allowed range:
-
-```
-0.2 – 4.0
-```
-
----
-
-## Project Structure
-
-```
-main.go        server startup
-app.go         application state and playback loop
-handlers.go    HTTP handlers
-progress.go    progress tracking
-audio.go       audio playback via aplay
-tts.go         Sherpa TTS initialization
-config.go      CLI flags and configuration
-sentences.go   sentence splitting
-index.html     embedded web UI
-```
-
----
-
-## Design Goals
-
-- Minimal dependencies
-- Easy to understand
-- Easy to modify
-- Fully offline
-- Small codebase
-
----
-
-## Known Limitations
-
-- Only tested with Piper VITS models.
-- Playback currently depends on `aplay` (ALSA).
-- Sentence splitting is simple regex/dictionary cleaner then sentence splitter and optional LLM cleaner per sentence.
-
-
----
+CI runs formatting, dependency verification, vet, race tests, package creation, and a packaged executable smoke test. Before releasing, also verify actual synthesis, speaker selection, pause/resume, Stop during generation, model switching, and ALSA playback with your chosen models and audio device. Automated lifecycle tests use a fake speech engine and do not establish model quality or hardware compatibility.
 
 ## License
 
-MIT License
+MIT. See [LICENSE](LICENSE). Bundled dependencies retain their own licenses.

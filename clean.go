@@ -13,7 +13,7 @@ import (
 	"unicode"
 )
 
-const url = "http://localhost:8011/v1/chat/completions"
+const cleanerURL = "http://localhost:8011/v1/chat/completions"
 
 const systemPrompt = "You are a text-processing assistant. Your task is to prepare input text for a Text-to-Speech (TTS) engine. " +
 	"1. Reconstruct words that are hyphenated across line breaks (e.g., 'config-\nuration' becomes 'configuration'). " +
@@ -44,7 +44,7 @@ var httpClient = &http.Client{
 	Timeout: 20 * time.Second,
 }
 
-func Clean(input string) (string, error) {
+func Clean(parent context.Context, input string) (string, error) {
 	reqBody := ChatRequest{
 		Model: "ornith-1.0-9b",
 		Messages: []Message{
@@ -60,32 +60,29 @@ func Clean(input string) (string, error) {
 		return "", fmt.Errorf("marshal request: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	ctx, cancel := context.WithTimeout(parent, 20*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, "POST", cleanerURL, bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
 
-	start := time.Now()
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("LLM clean latency:", time.Since(start))
-
 	if resp.StatusCode != http.StatusOK {
-		b, _ := io.ReadAll(resp.Body)
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("llm status %d: %s", resp.StatusCode, string(b))
 	}
 
 	var chatResp ChatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&chatResp); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
 
@@ -96,7 +93,7 @@ func Clean(input string) (string, error) {
 	out := strings.TrimSpace(chatResp.Choices[0].Message.Content)
 
 	// guard against models returning explanations
-	if strings.HasPrefix(out, "Here") || strings.Contains(out, "cleaned text") {
+	if len([]rune(out)) > maxSentenceRunes || out == "" || strings.HasPrefix(out, "Here") || strings.Contains(out, "cleaned text") {
 		return input, fmt.Errorf("model returned commentary")
 	}
 

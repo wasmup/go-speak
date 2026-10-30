@@ -4,9 +4,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
+	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 )
 
 // Config holds server configuration.
@@ -16,6 +19,7 @@ type Config struct {
 	Model       string  // TTS model directory
 	SID         int64   // default speaker id
 	Speed       float64 // default speech speed
+	LLMClean    bool    // explicitly enable the optional local LLM cleaner
 	StartupText string  // loaded startup text
 
 	Models []Model // TTS models
@@ -29,7 +33,7 @@ func (cfg *Config) ModelIndex(modelName string) int {
 			return i
 		}
 	}
-	return 0
+	return -1
 }
 
 type Model struct {
@@ -39,20 +43,39 @@ type Model struct {
 
 // ParseFlags parses command-line flags and prepares the configuration.
 func ParseFlags() (*Config, error) {
+	return parseFlags(os.Args[1:])
+}
+
+func parseFlags(args []string) (*Config, error) {
 	cfg := &Config{}
+	flags := flag.NewFlagSet("go-speak", flag.ContinueOnError)
 
-	flag.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
-	flag.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
-	flag.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
-	flag.StringVar(&cfg.Name, "name", "vits-piper-en_US-libritts_r-medium", "pre selected TTS model name")
+	flags.StringVar(&cfg.Addr, "addr", "127.0.0.1:8080", "web server listen address")
+	flags.StringVar(&cfg.Input, "i", "", "startup text file (optional)")
+	flags.StringVar(&cfg.Model, "m", "/opt/go-speak", "TTS model directory")
+	flags.StringVar(&cfg.Name, "name", "", "pre selected TTS model name")
 
-	flag.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
-	flag.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
+	flags.Int64Var(&cfg.SID, "sid", 0, "default speaker id")
+	flags.Float64Var(&cfg.Speed, "speed", 1.0, "default speech speed")
 
-	flag.Parse()
+	flags.BoolVar(&cfg.LLMClean, "llm-clean", false, "enable optional text cleaning via localhost:8011")
 
-	if cfg.Speed <= 0 {
-		cfg.Speed = 1.0
+	if err := flags.Parse(args); err != nil {
+		return nil, err
+	}
+	if flags.NArg() != 0 {
+		return nil, errors.New("unexpected positional arguments")
+	}
+
+	if !validSpeed(cfg.Speed) {
+		return nil, errors.New("speed must be between 0.2 and 4")
+	}
+	if cfg.SID < 0 || cfg.SID > maxSID {
+		return nil, errors.New("speaker id out of range")
+	}
+	host, _, err := net.SplitHostPort(cfg.Addr)
+	if err != nil || net.ParseIP(host) == nil || !net.ParseIP(host).IsLoopback() {
+		return nil, errors.New("listen address must use a loopback IP, for example 127.0.0.1:8080")
 	}
 
 	home, err := os.UserHomeDir()
@@ -70,9 +93,20 @@ func ParseFlags() (*Config, error) {
 	}
 
 	if cfg.Input != "" {
-		b, err := os.ReadFile(cfg.Input)
+		f, err := os.Open(cfg.Input)
 		if err != nil {
 			return nil, fmt.Errorf("input file error: %w", err)
+		}
+		defer f.Close()
+		b, err := io.ReadAll(io.LimitReader(f, maxTextBytes+1))
+		if err != nil {
+			return nil, fmt.Errorf("input file error: %w", err)
+		}
+		if len(b) > maxTextBytes {
+			return nil, errors.New("startup text exceeds 256 KiB")
+		}
+		if !utf8.Valid(b) {
+			return nil, errors.New("startup text must be valid UTF-8")
 		}
 		cfg.StartupText = string(b)
 	}
@@ -94,7 +128,16 @@ func ParseFlags() (*Config, error) {
 		m[name] = true
 	}
 
-	cfg.Index = cfg.ModelIndex(cfg.Name)
+	if len(cfg.Models) == 0 {
+		return nil, errors.New("no ONNX models found in model directory")
+	}
+	cfg.Index = 0
+	if cfg.Name != "" {
+		cfg.Index = cfg.ModelIndex(cfg.Name)
+		if cfg.Index < 0 {
+			return nil, fmt.Errorf("unknown model %q", cfg.Name)
+		}
+	}
 
 	return cfg, nil
 }

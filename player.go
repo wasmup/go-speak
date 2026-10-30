@@ -10,8 +10,15 @@ import (
 )
 
 func play(ctx context.Context, audio *sherpa.GeneratedAudio) error {
+	if audio == nil || audio.SampleRate <= 0 || len(audio.Samples) == 0 {
+		return fmt.Errorf("invalid audio")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	cmd := exec.CommandContext(ctx,
 		"aplay",
+		"-q", "-t", "raw",
 		"-f", "S16_LE",
 		"-r", fmt.Sprint(audio.SampleRate),
 		"-c", "1",
@@ -22,7 +29,10 @@ func play(ctx context.Context, audio *sherpa.GeneratedAudio) error {
 		return err
 	}
 
+	defer stdin.Close()
+
 	if err := cmd.Start(); err != nil {
+		stdin.Close()
 		return err
 	}
 
@@ -39,7 +49,7 @@ func play(ctx context.Context, audio *sherpa.GeneratedAudio) error {
 	if ctx.Err() != nil {
 		cmd.Process.Kill()
 		cmd.Wait()
-		return nil
+		return ctx.Err()
 	}
 
 	if err := binary.Write(stdin, binary.LittleEndian, buf); err != nil {
@@ -57,7 +67,7 @@ func play(ctx context.Context, audio *sherpa.GeneratedAudio) error {
 
 	err = cmd.Wait()
 	if ctx.Err() != nil {
-		return nil
+		return ctx.Err()
 	}
 
 	return err

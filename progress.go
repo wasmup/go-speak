@@ -5,45 +5,24 @@ import (
 	"net/http"
 )
 
-func (a *App) resetProgress(total int64) {
-	a.progressDone.Store(0)
-	a.progressTotal.Store(total)
-	a.progressPlaying.Store(total > 0)
-}
-
 func (a *App) handleProgress(w http.ResponseWriter, r *http.Request) {
-	done := a.progressDone.Load()
-	total := a.progressTotal.Load()
-	playing := a.progressPlaying.Load()
-
-	var percent int64
-	if total > 0 {
-		percent = done * 100 / total
-	}
-
-	p := ProgressResponse{
-		Done:    done,
-		Total:   total,
-		Playing: playing,
-		Percent: percent,
-	}
-	if v := a.currentSentence.Load(); v != nil {
-		p.Current, _ = v.(string)
-	}
-
 	a.mu.Lock()
-	p.WPM = a.currentWPM
+	p := a.progress
 	a.mu.Unlock()
-
+	if p.Total > 0 {
+		p.Percent = p.Done * 100 / p.Total
+	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(p)
+	_ = json.NewEncoder(w).Encode(p)
 }
 
 type ProgressResponse struct {
 	Done    int64  `json:"done"`
 	Total   int64  `json:"total"`
 	Playing bool   `json:"playing"`
+	Paused  bool   `json:"paused"`
 	Percent int64  `json:"percent"`
 	Current string `json:"current"`
 	WPM     int    `json:"wpm"`
+	Error   string `json:"error,omitempty"`
 }

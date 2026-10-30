@@ -1,26 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"regexp"
 	"strings"
 )
-
-// func splitSentences(text, splitChars string) []string {
-// 	f := func(r rune) bool {
-// 		return strings.ContainsRune(splitChars, r)
-// 	}
-// 	parts := strings.FieldsFunc(text, f)
-
-// 	var result []string
-// 	for _, p := range parts {
-// 		p = strings.TrimSpace(p)
-// 		if p != "" {
-// 			result = append(result, p)
-// 		}
-// 	}
-// 	return result
-// }
 
 type SentenceSplitter struct {
 	abbr map[string]string
@@ -38,10 +21,8 @@ func NewSentenceSplitter() *SentenceSplitter {
 	}
 
 	abbrMap := make(map[string]string)
-
-	for i, a := range abbrs {
-		token := fmt.Sprintf("__ABBR%d__", i)
-		abbrMap[a] = token
+	for _, a := range abbrs {
+		abbrMap[a] = a
 	}
 
 	return &SentenceSplitter{
@@ -52,26 +33,24 @@ func NewSentenceSplitter() *SentenceSplitter {
 	}
 }
 
-func (s *SentenceSplitter) protectAbbreviations(text string) string {
-	for abbr, token := range s.abbr {
-		text = strings.ReplaceAll(text, abbr, token)
-	}
-	return text
-}
+func (s *SentenceSplitter) Split(text string) []string { return s.SplitWithDelimiters(text, "") }
 
-func (s *SentenceSplitter) restoreAbbreviations(text string) string {
-	for abbr, token := range s.abbr {
-		text = strings.ReplaceAll(text, token, abbr)
+func (s *SentenceSplitter) SplitWithDelimiters(text, delimiters string) []string {
+	marker := "\uE000"
+	for strings.Contains(text, marker) {
+		marker += "\uE001"
 	}
-	return text
-}
-
-func (s *SentenceSplitter) Split(text string) []string {
-	text = s.protectAbbreviations(text)
+	for abbr := range s.abbr {
+		text = strings.ReplaceAll(text, abbr, strings.ReplaceAll(abbr, ".", marker))
+	}
+	re := s.re
+	if delimiters != "" {
+		re = regexp.MustCompile("[" + strings.ReplaceAll(regexp.QuoteMeta(delimiters), "-", `\-`) + `]+[”"')\]]*\s+`)
+	}
 
 	sentences := make([]string, 0)
 	start := 0
-	for _, match := range s.re.FindAllStringIndex(text, -1) {
+	for _, match := range re.FindAllStringIndex(text, -1) {
 		// The match includes the delimiter and following whitespace, so slicing
 		// through it before trimming retains the delimiter.
 		p := strings.TrimSpace(text[start:match[1]])
@@ -80,13 +59,13 @@ func (s *SentenceSplitter) Split(text string) []string {
 			continue
 		}
 
-		p = s.restoreAbbreviations(p)
+		p = strings.ReplaceAll(p, marker, ".")
 		sentences = append(sentences, p)
 		start = match[1]
 	}
 
 	if p := strings.TrimSpace(text[start:]); p != "" {
-		sentences = append(sentences, s.restoreAbbreviations(p))
+		sentences = append(sentences, strings.ReplaceAll(p, marker, "."))
 	}
 
 	return sentences

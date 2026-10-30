@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -9,8 +10,42 @@ import (
 	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 )
 
+type nativeEngine struct{ *sherpa.OfflineTts }
+
+func (e *nativeEngine) Close() { sherpa.DeleteOfflineTts(e.OfflineTts) }
+
 func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 	modelRoot := filepath.Dir(model.ModelFile)
+	// Check required assets before entering native code, which cannot report Go
+	// errors for malformed model layouts.
+	required := []string{model.ModelFile, filepath.Join(modelRoot, "tokens.txt"), filepath.Join(modelRoot, "espeak-ng-data")}
+	if strings.HasPrefix(model.Name, "kokoro") {
+		return nil, errors.New("Kokoro models are not supported; select a VITS, Matcha, or Supertonic model")
+	}
+	if strings.HasPrefix(model.Name, "sherpa-onnx-supertonic") {
+		required = nil
+		for _, name := range []string{"duration_predictor.int8.onnx", "text_encoder.int8.onnx", "vector_estimator.int8.onnx", "vocoder.int8.onnx", "tts.json", "unicode_indexer.bin", "voice.bin"} {
+			required = append(required, filepath.Join(modelRoot, name))
+		}
+	} else if strings.HasPrefix(model.Name, "matcha") {
+		required = append(required, filepath.Join(modelRoot, "vocos-22khz-univ.onnx"))
+	}
+	for _, path := range required {
+		info, err := os.Stat(path)
+		if err != nil {
+			return nil, fmt.Errorf("model asset %s: %w", path, err)
+		}
+		if filepath.Base(path) == "espeak-ng-data" {
+			if !info.IsDir() {
+				return nil, fmt.Errorf("model asset %s must be a directory", path)
+			}
+		} else if !info.Mode().IsRegular() {
+			return nil, fmt.Errorf("model asset %s must be a regular file", path)
+		}
+		if !info.IsDir() && info.Size() == 0 {
+			return nil, fmt.Errorf("empty model asset %s", path)
+		}
+	}
 
 	if strings.HasPrefix(model.Name, "sherpa-onnx-supertonic") {
 		ttsCfg := sherpa.OfflineTtsConfig{
@@ -40,7 +75,7 @@ func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 		ttsCfg := sherpa.OfflineTtsConfig{
 			Model: sherpa.OfflineTtsModelConfig{
 				Matcha: sherpa.OfflineTtsMatchaModelConfig{
-					AcousticModel: filepath.Join(modelRoot, "model.onnx"), // model-steps-3.onnx
+					AcousticModel: model.ModelFile,
 					Vocoder:       filepath.Join(modelRoot, "vocos-22khz-univ.onnx"),
 					Tokens:        filepath.Join(modelRoot, "tokens.txt"),
 					// Lexicon:       filepath.Join(modelRoot, "lexicon.txt"),
@@ -80,8 +115,8 @@ func NewTTS(model Model) (*sherpa.OfflineTts, error) {
 }
 
 // ModelFiles scans only the direct child directories of root.
-// For each child directory, if it contains one or more ".onnx" files directly
-// inside it, those files are returned as full paths.
+// It returns one unambiguous model graph per child directory, excluding
+// auxiliary graphs for supported multi-file layouts.
 //
 // It does NOT recurse beyond one directory level.
 func ModelFiles(root string) ([]string, error) {
@@ -104,12 +139,20 @@ func ModelFiles(root string) ([]string, error) {
 			return nil, err
 		}
 
+		var candidates []string
 		for _, child := range childEntries {
 			if child.IsDir() {
 				continue
 			}
 
 			if strings.EqualFold(filepath.Ext(child.Name()), ".onnx") {
+				// Multi-file models have one discovery entry, not one per graph.
+				if strings.HasPrefix(entry.Name(), "sherpa-onnx-supertonic") && child.Name() != "duration_predictor.int8.onnx" {
+					continue
+				}
+				if strings.HasPrefix(entry.Name(), "matcha") && child.Name() != "model.onnx" && !strings.HasPrefix(child.Name(), "model-steps-") {
+					continue
+				}
 				fullPath := filepath.Join(dirPath, child.Name())
 
 				// normalization to absolute path
@@ -118,9 +161,21 @@ func ModelFiles(root string) ([]string, error) {
 					return nil, err
 				}
 
-				out = append(out, absPath)
+				candidates = append(candidates, absPath)
 			}
 		}
+		if len(candidates) > 1 && strings.HasPrefix(entry.Name(), "matcha") {
+			for _, path := range candidates {
+				if filepath.Base(path) == "model.onnx" {
+					candidates = []string{path}
+					break
+				}
+			}
+		}
+		if len(candidates) > 1 {
+			return nil, fmt.Errorf("model directory %s contains multiple candidate ONNX graphs; keep one model per directory", dirPath)
+		}
+		out = append(out, candidates...)
 	}
 
 	return out, nil
