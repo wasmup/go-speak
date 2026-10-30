@@ -76,8 +76,19 @@ Download TTS model [here](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts
 
 
 ```sh
-wget -c https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2
+URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-en-v0_19.tar.bz2'
+URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/kokoro-multi-lang-v1_1.tar.bz2'
+URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/sherpa-onnx-supertonic-3-tts-int8-2026-05-11.tar.bz2'
+URL='https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/vits-piper-en_US-libritts_r-medium.tar.bz2'
+
+wget --timeout=3 -c $URL
+
 tar -xjf vits-piper-en_US-libritts_r-medium.tar.bz2
+
+tar -xjf kokoro-multi-lang-v1_1.tar.bz2
+
+CARGO_HTTP_SSL_VERSION=tlsv1.0
+curl -v -k -LOR --connect-timeout 3 -C - $URL
 
 
 
