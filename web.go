@@ -1,10 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
+	"os/exec"
+
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	sherpa "github.com/k2-fsa/sherpa-onnx-go-linux"
 	"html/template"
 	"log"
 	"math"
@@ -203,15 +208,16 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 		a.engine = engine
 	}
 	a.mu.Lock()
-	defer a.mu.Unlock()
 	a.modelIndex = index
 	a.speakerCount = a.engine.NumSpeakers()
 	if a.speakerCount <= 0 || a.sid.Load() >= int64(a.speakerCount) {
+		a.mu.Unlock()
 		http.Error(w, "speaker id unavailable for selected model", 400)
 		return
 	}
 	// Stop may have arrived while loading a model or waiting on synthesis.
 	if a.sessionID != id || r.Context().Err() != nil {
+		a.mu.Unlock()
 		http.Error(w, "play request canceled", 409)
 		return
 	}
@@ -220,7 +226,69 @@ func (a *App) handlePlay(w http.ResponseWriter, r *http.Request) {
 	a.done = make(chan struct{})
 	a.progress = ProgressResponse{Total: int64(len(chunks)), Playing: true}
 	traceLog(traceCtx, "play_accepted", "speakers=%d", a.speakerCount)
-	go a.playback(ctx, id, chunks, a.engine, a.done)
+	done = a.done
+	saving := r.URL.Path == "/save_mp3"
+	var pcm bytes.Buffer
+	sampleRate := 0
+	output := a.playAudio
+	if saving {
+		output = func(ctx context.Context, audio *sherpa.GeneratedAudio) error {
+			if sampleRate == 0 {
+				sampleRate = audio.SampleRate
+			}
+			if sampleRate != audio.SampleRate {
+				return fmt.Errorf("audio sample rate changed during synthesis")
+			}
+			for _, sample := range audio.Samples {
+				if sample > 1 {
+					sample = 1
+				}
+				if sample < -1 {
+					sample = -1
+				}
+				if err := binary.Write(&pcm, binary.LittleEndian, int16(sample*32767)); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
+	go a.playback(ctx, id, chunks, a.engine, done, output)
+	a.mu.Unlock()
+	if saving {
+		select {
+		case <-done:
+		case <-r.Context().Done():
+			a.mu.Lock()
+			if a.sessionID == id {
+				a.stopLocked("export_disconnected")
+			}
+			a.mu.Unlock()
+			return
+		}
+		a.mu.Lock()
+		message, active := a.progress.Error, a.sessionID == id
+		a.mu.Unlock()
+		if !active {
+			http.Error(w, "MP3 export canceled", http.StatusConflict)
+			return
+		}
+		if message != "" {
+			http.Error(w, message, http.StatusInternalServerError)
+			return
+		}
+		cmd := exec.CommandContext(r.Context(), "ffmpeg", "-hide_banner", "-loglevel", "error", "-f", "s16le", "-ar", strconv.Itoa(sampleRate), "-ac", "1", "-i", "pipe:0", "-f", "mp3", "pipe:1")
+		cmd.Stdin = &pcm
+		var encoded, stderr bytes.Buffer
+		cmd.Stdout, cmd.Stderr = &encoded, &stderr
+		if err := cmd.Run(); err != nil {
+			http.Error(w, "MP3 encoding failed (ffmpeg required): "+strings.TrimSpace(stderr.String())+" "+err.Error(), 500)
+			return
+		}
+		w.Header().Set("Content-Type", "audio/mpeg")
+		_, _ = w.Write(encoded.Bytes())
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(PlayResponse{Text: original})
 }

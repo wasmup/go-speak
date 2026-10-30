@@ -12,6 +12,7 @@ func (a *App) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.handleIndex)
 	mux.HandleFunc("POST /play", a.handlePlay)
+	mux.HandleFunc("POST /save_mp3", a.handlePlay)
 	mux.HandleFunc("POST /pause", a.HandlePause)
 	mux.HandleFunc("POST /stop", a.handleStop)
 	mux.HandleFunc("GET /progress", a.handleProgress)
@@ -58,5 +59,5 @@ func (a *App) Handler() http.Handler {
 
 func newServer(cfg *Config, a *App) *http.Server {
 	return &http.Server{Addr: cfg.Addr, Handler: a.Handler(), ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout: 15 * time.Second, WriteTimeout: 120 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
+		ReadTimeout: 15 * time.Second, WriteTimeout: 0, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
 }

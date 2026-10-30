@@ -104,7 +104,7 @@ func (a *App) Close() {
 	}
 }
 
-func (a *App) playback(ctx context.Context, id int64, sentences []string, engine speechEngine, done chan struct{}) {
+func (a *App) playback(ctx context.Context, id int64, sentences []string, engine speechEngine, done chan struct{}, output func(context.Context, *sherpa.GeneratedAudio) error) {
 	ctx = withPlaybackTrace(ctx, id, 0, len(sentences))
 	completed := 0
 	outcome := "completed"
@@ -207,7 +207,7 @@ func (a *App) playback(ctx context.Context, id int64, sentences []string, engine
 			a.mu.Unlock()
 			start := time.Now()
 			finishAudio := traceStage(ctx, "audio", fmt.Sprintf("samples=%d sample_rate=%d", len(audio.Samples), audio.SampleRate))
-			err := a.playAudio(sentCtx, audio)
+			err := output(sentCtx, audio)
 			finishAudio(fmt.Sprintf("error=%v context_error=%v", err, sentCtx.Err()))
 			duration += time.Since(start)
 			interrupted := sentCtx.Err() != nil

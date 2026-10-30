@@ -123,6 +123,7 @@
                 </option>
                 {{end}}
             </select>
+            <button id="btnSave" onclick="saveMP3()">Save MP3</button>
             <button id="btnPlay" onclick="play()">Play</button>
             <button id="btnPause" onclick="togglePause()">Pause</button>
             <button id="btnStop" onclick="stop()">Stop</button>
@@ -275,6 +276,30 @@
                     speed: speed
                 })
             }).catch(showError)
+        }
+
+        async function saveMP3() {
+            let name = prompt("MP3 filename:", "speech.mp3");
+            if (name === null) return;
+            name = name.trim().replace(/[\\/]/g, "_");
+            if (!name) { showError(new Error("Enter a filename")); return; }
+            if (!name.toLowerCase().endsWith('.mp3')) name += '.mp3';
+            const button = document.getElementById('btnSave');
+            document.getElementById('error').textContent = '';
+            button.disabled = true;
+            try {
+                const response = await request('/save_mp3', { method: 'POST', body: new URLSearchParams({
+                    text: document.getElementById('text').value,
+                    exclude: document.getElementById('exclude').value,
+                    split: document.getElementById('split').value,
+                    model_name: document.getElementById('model_name').value
+                }) });
+                const url = URL.createObjectURL(await response.blob());
+                const link = document.createElement('a');
+                link.href = url; link.download = name; link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+            } catch (err) { showError(err); }
+            finally { button.disabled = false; }
         }
 
         function play() {

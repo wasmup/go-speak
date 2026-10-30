@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os/exec"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -247,5 +248,29 @@ func TestPlaybackCompletesEverySentence(t *testing.T) {
 	a.mu.Unlock()
 	if generated != 3 || played != 3 || p.Done != 3 || p.Total != 3 || p.Playing || p.Error != "" {
 		t.Fatalf("generated=%d played=%d progress=%+v", generated, played, p)
+	}
+}
+
+func TestSaveMP3(t *testing.T) {
+	if _, err := exec.LookPath("ffmpeg"); err != nil {
+		t.Skip("ffmpeg unavailable")
+	}
+	a := testApp(t)
+	var generated int
+	a.newEngine = func(Model) (speechEngine, error) { return &fakeEngine{generate: func() { generated++ }}, nil }
+	response := post(a, "/save_mp3", url.Values{"text": {"First sentence. Second sentence."}, "split": {"."}})
+	if response.Code != http.StatusOK {
+		t.Fatalf("save failed: %d %s", response.Code, response.Body.String())
+	}
+	if response.Header().Get("Content-Type") != "audio/mpeg" || response.Body.Len() == 0 {
+		t.Fatal("missing MP3 response")
+	}
+	if generated != 2 {
+		t.Fatalf("generated %d chunks, want 2", generated)
+	}
+	cmd := exec.Command("ffmpeg", "-v", "error", "-f", "mp3", "-i", "pipe:0", "-f", "null", "-")
+	cmd.Stdin = strings.NewReader(response.Body.String())
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("invalid MP3: %v: %s", err, output)
 	}
 }
