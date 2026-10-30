@@ -116,7 +116,7 @@ If playback stalls, the last stage and its `_waiting` messages identify whether 
 
 ## Profiling MP3 export
 
-Profiling is controlled by the `RunProfiling` constant in `profiling.go` (currently `true`). Set it to `false` and rebuild to disable profiling. Each MP3 export starts a CPU profile and saves it along with a heap profile when conversion finishes, before the download begins. Files are overwritten by the next export and are written beside the executable as `go-speak-cpu.pprof` and `go-speak-heap.pprof`; that directory must be writable. Failures are logged and do not prevent the export.
+Profiling is controlled by the `RunProfiling` constant in `profiling.go` (currently `true`). Set it to `false` and rebuild to disable profiling. Each MP3 export starts a CPU profile and saves it along with a heap profile when conversion finishes, before the download begins. Files are overwritten by the next export and are written beside the executable as `go-speak-cpu.pprof`, `go-speak-heap.pprof`, `go-speak-goroutines-before.pprof`, and `go-speak-goroutine.pprof`; that directory must be writable. Failures are logged and do not prevent the export.
 
 For a representative measurement, build into a writable directory and run:
 
@@ -128,15 +128,17 @@ go build -o /tmp/go-speak-profile .
 Uncheck **Play sound while saving**, export representative text, and wait for the download. Inspect the resulting profiles with:
 
 ```sh
-go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-cpu.pprof
-go tool pprof -top /tmp/go-speak-profile /tmp/go-speak-heap.pprof
-
-go tool pprof -http=':8787' go-speak-cpu.pprof
-go tool pprof -http=':8788' go-speak-heap.pprof
+go tool pprof -http=':8787' build/go-speak-cpu.pprof
+go tool pprof -http=':8788' build/go-speak-heap.pprof
+go tool pprof -http=':8789' build/go-speak-goroutines-before.pprof
+go tool pprof -http=':8790' build/go-speak-goroutine.pprof
+go tool pprof -http=:8791 -base build/go-speak-goroutines-before.pprof build/go-speak-goroutine.pprof
 
 ```
 
 For exports started with sound off, **Workers** sets the maximum number of independent TTS engines, from 1 to the detected CPU count. Results are assembled in sentence order. The setting is fixed when an export starts, including if sound is toggled later. Each engine uses additional memory and its own inference threads, so a high worker count can be slower or exhaust memory; benchmark and reduce it if needed. Exports started with sound on use one engine.
+
+The goroutine profiles are snapshots at export start and finish. Compare repeated completed exports to investigate stacks that accumulate; a single difference can also reflect normal HTTP and background activity, and canceled exports can still have native synthesis finishing in the background. Save copies between runs because each export overwrites the profiles.
 
 The log's `generate_end` (or `parallel_generate_end` for parallel exports) elapsed time covers synthesis per sentence, `audio_end` covers handling each generated chunk (including speaker playback when enabled), and `encode_end` reports the complete ffmpeg encoding time. Model loading is logged separately; compare a first export and a subsequent export to distinguish startup from steady-state costs. Silent export is best for measuring conversion throughput.
 
